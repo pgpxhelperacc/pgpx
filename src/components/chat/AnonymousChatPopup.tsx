@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { MessageSquare, Send, X, Clock, Shield } from "lucide-react";
+import { MessageSquare, Send, X, Clock } from "lucide-react";
 import { ChatMessage } from "@/types";
 
 export function AnonymousChatPopup() {
@@ -61,58 +61,58 @@ export function AnonymousChatPopup() {
 
   return (
     <>
-      {/* Floating Button in Bottom-Right */}
+      {/* Floating Trigger Button in Bottom-Right */}
       <div className="fixed bottom-5 right-5 z-50">
         {!isOpen && (
           <button
             onClick={() => setIsOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white text-black hover:bg-zinc-200 font-medium text-xs shadow-2xl transition-all active:scale-95 border border-zinc-200"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-white text-black hover:bg-[#eaeaea] font-medium text-xs shadow-xl transition-all active:scale-95 border border-[#e4e4e7]"
           >
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="w-3.5 h-3.5" />
             <span>Anonymous Batch Chat</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+            <span className="w-1.5 h-1.5 rounded-full bg-black" />
           </button>
         )}
       </div>
 
       {/* Floating Pop-up Window */}
       {isOpen && (
-        <div className="fixed bottom-5 right-5 z-50 w-full max-w-sm sm:max-w-md h-[520px] rounded-2xl bg-black border border-zinc-800 shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed bottom-5 right-5 z-50 w-full max-w-sm sm:max-w-md h-[500px] rounded-xl bg-[#0a0a0c] border border-[#222226] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
           {/* Header */}
-          <div className="p-3.5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
+          <div className="p-3 border-b border-[#1c1c20] flex items-center justify-between bg-[#0e0e11]">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white">
-                <MessageSquare className="w-3.5 h-3.5" />
+              <div className="w-6 h-6 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center text-white">
+                <MessageSquare className="w-3 h-3" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-white flex items-center gap-1.5">
+                <div className="text-xs font-medium text-white flex items-center gap-1.5">
                   <span>Anonymous Chat</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
+                  <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[#161619] text-[#71717a] border border-[#242428]">
                     24h Purge
                   </span>
                 </div>
-                <div className="text-[10px] text-zinc-400 font-mono">
-                  Posting as: <span className="text-white font-medium">{myPseudonym}</span>
+                <div className="text-[10px] text-[#71717a] font-mono">
+                  Posting as: <span className="text-[#ededed] font-medium">{myPseudonym}</span>
                 </div>
               </div>
             </div>
 
             <button
               onClick={() => setIsOpen(false)}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors"
+              className="p-1 rounded text-[#71717a] hover:text-white hover:bg-[#18181b] transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Ephemeral Info Banner */}
-          <div className="px-3 py-1.5 bg-zinc-950 border-b border-zinc-900 text-[10px] text-zinc-500 flex items-center justify-between">
-            <span>Text only • Hard-deleted every 24 hours</span>
+          <div className="px-3 py-1 bg-[#09090b] border-b border-[#18181b] text-[10px] text-[#52525b] flex items-center justify-between font-mono">
+            <span>Text only • 24h rolling purge</span>
             <span>@iimrohtak.ac.in</span>
           </div>
 
           {/* Messages Stream (Text Only) */}
-          <div className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-black">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2.5 bg-black">
             {messages.length > 0 ? (
               messages.map((m) => {
                 const isOwn = m.pseudonym === myPseudonym;
@@ -121,8 +121,8 @@ export function AnonymousChatPopup() {
                     key={m.id}
                     className={`flex flex-col ${isOwn ? "items-end" : "items-start"} space-y-0.5`}
                   >
-                    <div className="flex items-center gap-1.5 px-1 text-[10px] font-mono text-zinc-500">
-                      <span className={isOwn ? "text-zinc-300 font-medium" : "text-zinc-500"}>
+                    <div className="flex items-center gap-1.5 px-1 text-[10px] font-mono text-[#52525b]">
+                      <span className={isOwn ? "text-[#a1a1aa] font-medium" : "text-[#71717a]"}>
                         {m.pseudonym}
                       </span>
                       <span>•</span>
@@ -135,10 +135,10 @@ export function AnonymousChatPopup() {
                     </div>
 
                     <div
-                      className={`p-2.5 rounded-xl text-xs max-w-[85%] leading-relaxed ${
+                      className={`p-2 rounded-lg text-xs max-w-[85%] leading-relaxed ${
                         isOwn
-                          ? "bg-white text-black"
-                          : "bg-zinc-900 text-zinc-200 border border-zinc-800"
+                          ? "bg-white text-black font-normal"
+                          : "bg-[#141416] text-[#ededed] border border-[#222226]"
                       }`}
                     >
                       {m.body}
@@ -147,11 +147,11 @@ export function AnonymousChatPopup() {
                 );
               })
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-500 space-y-2">
-                <Clock className="w-6 h-6 text-zinc-600" />
-                <p className="text-xs text-zinc-400">No active messages in the last 24h.</p>
-                <p className="text-[11px] text-zinc-600">
-                  Be the first to post anonymously to the batch!
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-[#52525b] space-y-1.5">
+                <Clock className="w-5 h-5 text-[#3f3f46]" />
+                <p className="text-xs text-[#71717a]">No active messages in the last 24 hours.</p>
+                <p className="text-[11px] text-[#52525b]">
+                  Post anything anonymously to the batch.
                 </p>
               </div>
             )}
@@ -161,19 +161,19 @@ export function AnonymousChatPopup() {
           {/* Input Box */}
           <form
             onSubmit={handleSend}
-            className="p-2.5 border-t border-zinc-800 bg-zinc-950 flex items-center gap-2"
+            className="p-2 border-t border-[#1c1c20] bg-[#0c0c0e] flex items-center gap-2"
           >
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder={`Text anonymously as ${myPseudonym}...`}
-              className="flex-1 bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+              className="flex-1 bg-[#141416] border border-[#222226] px-2.5 py-1.5 rounded-lg text-xs text-white placeholder-[#52525b] focus:outline-none focus:border-[#38383f]"
             />
             <button
               type="submit"
               disabled={sending || !inputText.trim()}
-              className="p-2 rounded-xl bg-white text-black hover:bg-zinc-200 disabled:opacity-40 transition-colors"
+              className="p-1.5 rounded-lg bg-white text-black hover:bg-[#eaeaea] disabled:opacity-30 transition-colors"
             >
               <Send className="w-3.5 h-3.5" />
             </button>

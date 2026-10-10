@@ -36,44 +36,44 @@ export function Header({
   };
 
   return (
-    <header className="h-14 border-b border-zinc-800 bg-black px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
+    <header className="h-13 border-b border-[#1c1c1f] bg-black/90 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
       {/* Mobile Brand / Search */}
       <div className="flex items-center gap-3">
-        <span className="md:hidden font-semibold text-xs tracking-tight text-white flex items-center gap-1.5 mr-1">
-          <span className="w-2 h-2 rounded-full bg-white" />
-          PGPx Portal
+        <span className="md:hidden font-medium text-xs tracking-tight text-white flex items-center gap-1.5 mr-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-white" />
+          PGPx
         </span>
         <button
           onClick={onOpenCommandPalette}
-          className="flex items-center gap-2.5 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 text-xs transition-colors"
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-[#121214] hover:bg-[#18181b] text-[#71717a] hover:text-[#d4d4d8] border border-[#242428] text-xs transition-colors"
           title="Search or execute actions (Ctrl+K)"
         >
-          <Search className="w-3.5 h-3.5 text-zinc-400" />
+          <Search className="w-3.5 h-3.5 text-[#71717a]" />
           <span className="hidden sm:inline">Search courses, deadlines, links...</span>
           <span className="sm:hidden">Search...</span>
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-mono text-zinc-400">
+          <kbd className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-[#1c1c20] border border-[#2c2c32] text-[10px] font-mono text-[#a1a1aa]">
             ⌘K
           </kbd>
         </button>
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         {/* Calendar Feed Subscription Link */}
         <a
           href="/api/calendar/feed.ics"
           download="pgpx-calendar.ics"
-          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#121214] hover:bg-[#18181b] border border-[#242428] text-xs text-[#a1a1aa] hover:text-white transition-colors"
           title="Subscribe in Apple / Google Calendar"
         >
-          <CalendarCheck className="w-3.5 h-3.5 text-zinc-400" />
+          <CalendarCheck className="w-3.5 h-3.5 text-[#71717a]" />
           <span>Sync .ICS</span>
         </a>
 
         {/* Quick Add Reminder */}
         <button
           onClick={onOpenAddReminder}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-all active:scale-95"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-white hover:bg-[#eaeaea] text-black font-medium text-xs transition-colors active:scale-95"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Add Date</span>
@@ -83,17 +83,17 @@ export function Header({
         <div className="relative">
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs transition-colors"
+            className="flex items-center gap-2 px-2 py-1 rounded bg-[#121214] hover:bg-[#18181b] border border-[#242428] text-xs transition-colors"
           >
-            <div className="w-6 h-6 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[11px] font-bold text-white">
+            <div className="w-5 h-5 rounded bg-[#27272a] border border-[#3f3f46] flex items-center justify-center text-[10px] font-semibold text-white">
               {currentUser.name.charAt(0)}
             </div>
             <div className="hidden sm:flex flex-col text-left">
-              <span className="text-[12px] font-medium text-white truncate max-w-[110px]">
+              <span className="text-[11px] font-medium text-white truncate max-w-[100px]">
                 {currentUser.name}
               </span>
-              <span className="text-[10px] font-mono text-zinc-400 flex items-center gap-1">
-                {currentUser.role === "cr" && <Shield className="w-2.5 h-2.5 text-zinc-300" />}
+              <span className="text-[9px] font-mono text-[#71717a] flex items-center gap-1">
+                {currentUser.role === "cr" && <Shield className="w-2 h-2 text-[#a1a1aa]" />}
                 {currentUser.role.toUpperCase()}
               </span>
             </div>
@@ -101,7 +101,7 @@ export function Header({
 
           {/* Persona Menu Dropdown */}
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 rounded-xl bg-zinc-950 border border-zinc-800 shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 mt-2 w-60 rounded-lg bg-[#0c0c0e] border border-[#242428] shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
               <div className="px-3 py-2 border-b border-zinc-800 mb-1">
                 <p className="text-[11px] font-semibold text-white">{currentUser.name}</p>
                 <p className="text-[10px] font-mono text-zinc-400">{currentUser.email}</p>

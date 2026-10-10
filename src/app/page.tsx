@@ -10,19 +10,13 @@ import {
   Plus,
   ExternalLink,
   Search,
-  MapPin,
-  Calendar,
+  ArrowUpRight,
   Layers,
-  ArrowRight,
-  ShieldCheck,
-  Award,
-  MessageSquare,
 } from "lucide-react";
 import { AddReminderModal } from "@/components/reminders/AddReminderModal";
 import { CreateAssignmentModal } from "@/components/modals/CreateAssignmentModal";
 import { CreateLinkModal } from "@/components/modals/CreateLinkModal";
 import { CreatePartyModal } from "@/components/modals/CreatePartyModal";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   Reminder,
   Assignment,
@@ -124,7 +118,7 @@ export default function DashboardPage() {
       id: a.id,
       type: "assignment" as ItemType,
       title: a.title,
-      subtitle: `${a.course_code} • ${a.type === "group" ? "Group Submission" : "Individual Submission"}`,
+      subtitle: `${a.course_code} • ${a.type === "group" ? "Group" : "Individual"}`,
       dateStr: new Date(a.due_at).toLocaleDateString("en-IN", {
         month: "short",
         day: "numeric",
@@ -184,105 +178,77 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
-      {/* Top Banner / Breadcrumb */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-zinc-500 mb-1">
-            <span>PORTAL</span>
+    <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in duration-100">
+      {/* Top Header Breadcrumb & Context */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#1c1c1f] gap-3">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2 text-[11px] font-mono text-[#71717a]">
+            <span>iim-rohtak</span>
             <span>/</span>
-            <span className="text-white">DASHBOARD</span>
+            <span className="text-[#ededed]">pgpx-portal</span>
             <span>/</span>
             <span>{user?.batch || "PGPx06"}</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-            PGPx Student Portal
+          <h1 className="text-base sm:text-lg font-medium text-white tracking-tight">
+            Overview
           </h1>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Minimalist workspace • Create reminders, assignments, links & batch events.
+          <p className="text-xs text-[#71717a]">
+            Unified student directory for deadlines, assignments, links, and batch events.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="px-3 py-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300">
-            {unifiedItems.length} Total Items
-          </div>
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#121214] border border-[#222226] text-[#8e8e93]">
+            {unifiedItems.length} records
+          </span>
         </div>
       </div>
 
-      {/* Mobile Portals Quick Bar (Shown on small screens where sidebar is hidden) */}
-      <div className="md:hidden flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-zinc-900">
-        <Link
-          href="/schedule"
-          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
-        >
-          Schedule
-        </Link>
-        <Link
-          href="/reminders"
-          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
-        >
-          Dates
-        </Link>
-        <Link
-          href="/assignments"
-          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
-        >
-          Assignments
-        </Link>
-        <Link
-          href="/links"
-          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
-        >
-          Links
-        </Link>
-        <Link
-          href="/feedback"
-          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
-        >
-          Feedback
-        </Link>
-        <Link
-          href="/party"
-          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
-        >
-          Socials
-        </Link>
-        <Link
-          href="/admin"
-          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
-        >
-          Admin
-        </Link>
+      {/* Mobile Quick Navigation Strip */}
+      <div className="md:hidden flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#1c1c1f]">
+        {[
+          { label: "Schedule", href: "/schedule" },
+          { label: "Dates", href: "/reminders" },
+          { label: "Assignments", href: "/assignments" },
+          { label: "Links", href: "/links" },
+          { label: "Feedback", href: "/feedback" },
+          { label: "Socials", href: "/party" },
+          { label: "Admin", href: "/admin" },
+        ].map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="px-2 py-1 rounded bg-[#121214] border border-[#222226] text-[11px] text-[#a1a1aa] whitespace-nowrap"
+          >
+            {link.label}
+          </Link>
+        ))}
       </div>
 
-      {/* TOP: FOUR ACTION BLOCKS (Vercel Style) */}
-      <section className="space-y-3">
+      {/* TOP: FOUR ACTION BLOCKS (Supabase & Vercel Style) */}
+      <section className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs uppercase font-mono tracking-wider text-zinc-400">
-            Quick Actions
-          </h2>
-          <span className="text-[11px] text-zinc-600 font-mono">Click to create</span>
+          <span className="text-[10px] uppercase font-mono tracking-wider text-[#636366]">
+            Quick Create
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           {/* Block 1: Create New Reminder */}
           <button
             onClick={() => setOpenReminderModal(true)}
-            className="group p-4 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-zinc-600 text-left transition-all active:scale-[0.99] flex flex-col justify-between h-32 hover:bg-zinc-900/60"
+            className="group p-3 rounded-lg bg-[#0c0c0e] hover:bg-[#121214] border border-[#1e1e22] hover:border-[#323238] text-left transition-colors flex flex-col justify-between h-24"
           >
-            <div className="flex items-start justify-between w-full">
-              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white group-hover:bg-white group-hover:text-black transition-colors">
-                <Clock className="w-4 h-4" />
+            <div className="flex items-center justify-between w-full">
+              <div className="w-6 h-6 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center text-white">
+                <Clock className="w-3.5 h-3.5" />
               </div>
-              <span className="text-zinc-600 group-hover:text-white transition-colors">
-                <Plus className="w-4 h-4" />
-              </span>
+              <ArrowUpRight className="w-3.5 h-3.5 text-[#52525b] group-hover:text-white transition-colors" />
             </div>
             <div>
-              <div className="font-semibold text-xs text-white">Create New Reminder</div>
-              <div className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1">
-                Add quiz, exam or task deadline
+              <div className="text-xs font-medium text-white">Create New Reminder</div>
+              <div className="text-[11px] text-[#71717a] mt-0.5 line-clamp-1">
+                Quiz, exam or submission deadline
               </div>
             </div>
           </button>
@@ -290,19 +256,17 @@ export default function DashboardPage() {
           {/* Block 2: Create New Assignment */}
           <button
             onClick={() => setOpenAssignmentModal(true)}
-            className="group p-4 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-zinc-600 text-left transition-all active:scale-[0.99] flex flex-col justify-between h-32 hover:bg-zinc-900/60"
+            className="group p-3 rounded-lg bg-[#0c0c0e] hover:bg-[#121214] border border-[#1e1e22] hover:border-[#323238] text-left transition-colors flex flex-col justify-between h-24"
           >
-            <div className="flex items-start justify-between w-full">
-              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white group-hover:bg-white group-hover:text-black transition-colors">
-                <FileCheck2 className="w-4 h-4" />
+            <div className="flex items-center justify-between w-full">
+              <div className="w-6 h-6 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center text-white">
+                <FileCheck2 className="w-3.5 h-3.5" />
               </div>
-              <span className="text-zinc-600 group-hover:text-white transition-colors">
-                <Plus className="w-4 h-4" />
-              </span>
+              <ArrowUpRight className="w-3.5 h-3.5 text-[#52525b] group-hover:text-white transition-colors" />
             </div>
             <div>
-              <div className="font-semibold text-xs text-white">Create New Assignment</div>
-              <div className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1">
+              <div className="text-xs font-medium text-white">Create New Assignment</div>
+              <div className="text-[11px] text-[#71717a] mt-0.5 line-clamp-1">
                 Deliverable, weightage & portal link
               </div>
             </div>
@@ -311,20 +275,18 @@ export default function DashboardPage() {
           {/* Block 3: Create New Link */}
           <button
             onClick={() => setOpenLinkModal(true)}
-            className="group p-4 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-zinc-600 text-left transition-all active:scale-[0.99] flex flex-col justify-between h-32 hover:bg-zinc-900/60"
+            className="group p-3 rounded-lg bg-[#0c0c0e] hover:bg-[#121214] border border-[#1e1e22] hover:border-[#323238] text-left transition-colors flex flex-col justify-between h-24"
           >
-            <div className="flex items-start justify-between w-full">
-              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white group-hover:bg-white group-hover:text-black transition-colors">
-                <Bookmark className="w-4 h-4" />
+            <div className="flex items-center justify-between w-full">
+              <div className="w-6 h-6 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center text-white">
+                <Bookmark className="w-3.5 h-3.5" />
               </div>
-              <span className="text-zinc-600 group-hover:text-white transition-colors">
-                <Plus className="w-4 h-4" />
-              </span>
+              <ArrowUpRight className="w-3.5 h-3.5 text-[#52525b] group-hover:text-white transition-colors" />
             </div>
             <div>
-              <div className="font-semibold text-xs text-white">Create New Link</div>
-              <div className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1">
-                Share portal, drive sheet or resource
+              <div className="text-xs font-medium text-white">Create New Link</div>
+              <div className="text-[11px] text-[#71717a] mt-0.5 line-clamp-1">
+                Course drive, portal or resource
               </div>
             </div>
           </button>
@@ -332,192 +294,167 @@ export default function DashboardPage() {
           {/* Block 4: Create New Party / Social */}
           <button
             onClick={() => setOpenPartyModal(true)}
-            className="group p-4 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-zinc-600 text-left transition-all active:scale-[0.99] flex flex-col justify-between h-32 hover:bg-zinc-900/60"
+            className="group p-3 rounded-lg bg-[#0c0c0e] hover:bg-[#121214] border border-[#1e1e22] hover:border-[#323238] text-left transition-colors flex flex-col justify-between h-24"
           >
-            <div className="flex items-start justify-between w-full">
-              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white group-hover:bg-white group-hover:text-black transition-colors">
-                <Sparkles className="w-4 h-4" />
+            <div className="flex items-center justify-between w-full">
+              <div className="w-6 h-6 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center text-white">
+                <Sparkles className="w-3.5 h-3.5" />
               </div>
-              <span className="text-zinc-600 group-hover:text-white transition-colors">
-                <Plus className="w-4 h-4" />
-              </span>
+              <ArrowUpRight className="w-3.5 h-3.5 text-[#52525b] group-hover:text-white transition-colors" />
             </div>
             <div>
-              <div className="font-semibold text-xs text-white">Create New Party Chat</div>
-              <div className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1">
-                Plan batch dinner, trip or mixer
+              <div className="text-xs font-medium text-white">Create New Party Chat</div>
+              <div className="text-[11px] text-[#71717a] mt-0.5 line-clamp-1">
+                Batch dinner, outing or mixer
               </div>
             </div>
           </button>
         </div>
       </section>
 
-      {/* BELOW: LIST OF ITEMS CREATED BY EACH BLOCK */}
-      <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+      {/* BELOW: SUPABASE-STYLE DATA TABLE / CREATED ITEMS STREAM */}
+      <section className="space-y-3 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           {/* Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            <button
-              onClick={() => setActiveTab("all")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                activeTab === "all"
-                  ? "bg-white text-black"
-                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
-              }`}
-            >
-              All ({unifiedItems.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("reminders")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                activeTab === "reminders"
-                  ? "bg-white text-black"
-                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
-              }`}
-            >
-              Reminders ({reminders.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("assignments")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                activeTab === "assignments"
-                  ? "bg-white text-black"
-                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
-              }`}
-            >
-              Assignments ({assignments.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("links")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                activeTab === "links"
-                  ? "bg-white text-black"
-                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
-              }`}
-            >
-              Links ({links.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("party")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                activeTab === "party"
-                  ? "bg-white text-black"
-                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
-              }`}
-            >
-              Socials ({partyEvents.length})
-            </button>
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {[
+              { id: "all", label: "All", count: unifiedItems.length },
+              { id: "reminders", label: "Reminders", count: reminders.length },
+              { id: "assignments", label: "Assignments", count: assignments.length },
+              { id: "links", label: "Links", count: links.length },
+              { id: "party", label: "Social Plans", count: partyEvents.length },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1.5 ${
+                  activeTab === tab.id
+                    ? "bg-[#18181b] text-white font-medium border border-[#27272a]"
+                    : "text-[#71717a] hover:text-[#ededed] hover:bg-[#121214]"
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className="text-[10px] font-mono text-[#52525b]">
+                  {tab.count}
+                </span>
+              </button>
+            ))}
           </div>
 
           {/* Search Box */}
-          <div className="relative w-full sm:w-64">
-            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative w-full sm:w-56">
+            <Search className="w-3.5 h-3.5 text-[#52525b] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search created items..."
+              placeholder="Search records..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 pl-9 pr-3 py-1.5 rounded-md text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+              className="w-full bg-[#0c0c0e] border border-[#1e1e22] pl-8 pr-2.5 py-1 rounded text-xs text-white placeholder-[#52525b] focus:outline-none focus:border-[#38383f]"
             />
           </div>
         </div>
 
-        {/* Content Stream */}
+        {/* Content Table / Stream */}
         {loading ? (
-          <div className="p-12 text-center text-xs text-zinc-500 font-mono">
+          <div className="p-10 text-center text-xs text-[#52525b] font-mono">
             Loading portal items...
           </div>
         ) : filteredItems.length === 0 ? (
           /* Clean Empty State */
-          <div className="p-12 rounded-xl border border-dashed border-zinc-800 bg-zinc-950/50 text-center space-y-4">
-            <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
-              <Layers className="w-5 h-5" />
+          <div className="p-10 rounded-lg border border-dashed border-[#1e1e22] bg-[#0c0c0e]/50 text-center space-y-3">
+            <div className="w-8 h-8 rounded-full bg-[#141416] border border-[#242428] flex items-center justify-center mx-auto text-[#71717a]">
+              <Layers className="w-4 h-4" />
             </div>
-            <div className="space-y-1 max-w-sm mx-auto">
-              <h3 className="text-sm font-semibold text-white">No items created yet</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                This portal is completely fresh. Use the 4 action blocks above to publish your first reminder, assignment deliverable, link, or batch party.
+            <div className="space-y-0.5 max-w-sm mx-auto">
+              <h3 className="text-xs font-medium text-white">No items created yet</h3>
+              <p className="text-[11px] text-[#71717a] leading-relaxed">
+                This portal is completely fresh. Click any of the four blocks above to publish a reminder, assignment, resource link, or batch event.
               </p>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
               <button
                 onClick={() => setOpenReminderModal(true)}
-                className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+                className="px-2.5 py-1 rounded bg-[#121214] hover:bg-[#18181b] border border-[#222226] text-xs text-[#a1a1aa] hover:text-white transition-colors"
               >
                 + New Reminder
               </button>
               <button
                 onClick={() => setOpenAssignmentModal(true)}
-                className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+                className="px-2.5 py-1 rounded bg-[#121214] hover:bg-[#18181b] border border-[#222226] text-xs text-[#a1a1aa] hover:text-white transition-colors"
               >
                 + New Assignment
               </button>
               <button
                 onClick={() => setOpenLinkModal(true)}
-                className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+                className="px-2.5 py-1 rounded bg-[#121214] hover:bg-[#18181b] border border-[#222226] text-xs text-[#a1a1aa] hover:text-white transition-colors"
               >
                 + New Link
               </button>
               <button
                 onClick={() => setOpenPartyModal(true)}
-                className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+                className="px-2.5 py-1 rounded bg-[#121214] hover:bg-[#18181b] border border-[#222226] text-xs text-[#a1a1aa] hover:text-white transition-colors"
               >
                 + New Party
               </button>
             </div>
           </div>
         ) : (
-          /* List of Items */
-          <div className="space-y-2">
+          /* Sleek Table Container */
+          <div className="border border-[#1e1e22] rounded-lg bg-[#0c0c0e] divide-y divide-[#18181b] overflow-hidden">
+            <div className="px-3.5 py-1.5 bg-[#09090b] text-[10px] font-mono uppercase tracking-wider text-[#52525b] flex items-center justify-between">
+              <span>Title & Details</span>
+              <span className="hidden sm:inline">Timeline / Action</span>
+            </div>
+
             {filteredItems.map((item) => (
               <div
                 key={`${item.type}-${item.id}`}
-                className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 hover:border-zinc-700 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                className="px-3.5 py-2.5 hover:bg-[#111114] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
               >
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-900 text-zinc-400 border border-zinc-800 uppercase">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[#161619] text-[#71717a] border border-[#242428] uppercase">
                       {item.type}
                     </span>
                     {item.badge && (
-                      <span className="text-[10px] font-mono text-zinc-400">
+                      <span className="text-[10px] font-mono text-[#71717a]">
                         {item.badge}
                       </span>
                     )}
                     {item.dateStr && (
-                      <span className="text-[11px] font-mono text-zinc-500">
+                      <span className="text-[10px] font-mono text-[#52525b]">
                         • {item.dateStr}
                       </span>
                     )}
                   </div>
-                  <h3 className="text-xs font-semibold text-white truncate">
+                  <h3 className="text-xs font-medium text-white truncate">
                     {item.title}
                   </h3>
                   {item.subtitle && (
-                    <p className="text-[11px] text-zinc-400 line-clamp-1">
+                    <p className="text-[11px] text-[#71717a] line-clamp-1">
                       {item.subtitle}
                     </p>
                   )}
                 </div>
 
                 {/* Item Actions */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   {item.url && (
                     <a
                       href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs transition-colors"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#141416] hover:bg-[#1a1a1e] border border-[#222226] text-[#ededed] text-xs transition-colors"
                     >
                       <span>Open</span>
-                      <ExternalLink className="w-3 h-3 text-zinc-500" />
+                      <ExternalLink className="w-3 h-3 text-[#71717a]" />
                     </a>
                   )}
 
                   {item.type === "reminder" && (
                     <Link
                       href="/reminders"
-                      className="px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs transition-colors"
+                      className="px-2 py-0.5 rounded bg-[#141416] hover:bg-[#1a1a1e] border border-[#222226] text-[#ededed] text-xs transition-colors"
                     >
                       Details
                     </Link>
@@ -526,7 +463,7 @@ export default function DashboardPage() {
                   {item.type === "assignment" && (
                     <Link
                       href="/assignments"
-                      className="px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs transition-colors"
+                      className="px-2 py-0.5 rounded bg-[#141416] hover:bg-[#1a1a1e] border border-[#222226] text-[#ededed] text-xs transition-colors"
                     >
                       View Deliverable
                     </Link>
@@ -535,7 +472,7 @@ export default function DashboardPage() {
                   {item.type === "party" && (
                     <Link
                       href="/party"
-                      className="px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs transition-colors"
+                      className="px-2 py-0.5 rounded bg-[#141416] hover:bg-[#1a1a1e] border border-[#222226] text-[#ededed] text-xs transition-colors"
                     >
                       RSVP / Join
                     </Link>

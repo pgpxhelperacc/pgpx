@@ -1,11 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClientAppShell } from "@/components/layout/ClientAppShell";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "PGPx Student Portal | IIM Rohtak",
   description:
-    "Unified mobile-first student portal for PGPx IIM Rohtak: track class schedules, deadlines, links, anonymous faculty feedback, anonymous chat, and social events.",
+    "Unified student portal for PGPx IIM Rohtak: track class schedules, deadlines, links, anonymous faculty feedback, anonymous chat, and social events.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -28,8 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-black text-[#ededed] antialiased min-h-screen flex">
+    <html lang="en" className={`dark ${inter.variable}`}>
+      <body className={`${inter.className} bg-black text-[#ededed] antialiased min-h-screen flex selection:bg-zinc-800 selection:text-white`}>
         <ClientAppShell>{children}</ClientAppShell>
       </body>
     </html>
