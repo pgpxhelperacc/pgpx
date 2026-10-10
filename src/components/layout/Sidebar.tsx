@@ -37,27 +37,27 @@ export function Sidebar({ userRole = "student" }: SidebarProps) {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-64 border-r border-white/10 bg-[#09090b]/80 backdrop-blur-xl shrink-0 select-none z-30">
+    <aside className="hidden md:flex flex-col w-64 border-r border-zinc-800 bg-black shrink-0 select-none z-30">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 border-b border-white/10 gap-3">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-glow">
-          <Zap className="w-4 h-4 text-white" />
+      <div className="h-14 flex items-center px-5 border-b border-zinc-800 gap-3">
+        <div className="w-7 h-7 rounded-md bg-white text-black flex items-center justify-center font-bold text-xs">
+          ▲
         </div>
         <div className="flex flex-col">
-          <span className="font-semibold text-sm tracking-tight text-white flex items-center gap-1.5">
+          <span className="font-semibold text-xs tracking-tight text-white flex items-center gap-1.5">
             PGPx Portal
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
               IIMR
             </span>
           </span>
-          <span className="text-[11px] text-zinc-400 font-mono">pgpx.iimrohtak.in</span>
+          <span className="text-[10px] text-zinc-500 font-mono">pgpx.iimrohtak.in</span>
         </div>
       </div>
 
       {/* Navigation List */}
-      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        <div className="px-3 pb-2 text-[10px] uppercase font-mono tracking-wider text-zinc-500">
-          Main Navigation
+      <nav className="flex-1 py-3 px-2.5 space-y-0.5 overflow-y-auto">
+        <div className="px-3 py-1.5 text-[10px] uppercase font-mono tracking-wider text-zinc-500">
+          Portals & Features
         </div>
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -66,22 +66,22 @@ export function Sidebar({ userRole = "student" }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all group ${
+              className={`flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-all group ${
                 isActive
-                  ? "bg-white/10 text-white shadow-sm border border-white/10"
-                  : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  ? "bg-zinc-900 text-white border border-zinc-700"
+                  : "text-zinc-400 hover:text-white hover:bg-zinc-900/50"
               }`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <Icon
-                  className={`w-4 h-4 transition-colors ${
-                    isActive ? "text-blue-400" : "text-zinc-400 group-hover:text-zinc-200"
+                  className={`w-3.5 h-3.5 transition-colors ${
+                    isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-200"
                   }`}
                 />
                 <span>{item.label}</span>
               </div>
               {item.badge && (
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-white/5">
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
                   {item.badge}
                 </span>
               )}
@@ -91,16 +91,16 @@ export function Sidebar({ userRole = "student" }: SidebarProps) {
       </nav>
 
       {/* Footer Info */}
-      <div className="p-4 border-t border-white/10 text-xs text-zinc-500 space-y-2">
+      <div className="p-3.5 border-t border-zinc-800 text-xs text-zinc-500 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-zinc-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Portal Live
+          <span className="flex items-center gap-1.5 text-zinc-400 text-[11px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+            Portal Active
           </span>
-          <span className="font-mono text-[10px] text-zinc-500">v1.0 MVP</span>
+          <span className="font-mono text-[10px] text-zinc-500">v1.0</span>
         </div>
-        <p className="text-[11px] text-zinc-400 leading-relaxed">
-          Press <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300 font-mono text-[10px]">Ctrl+K</kbd> for quick command palette.
+        <p className="text-[10px] text-zinc-500 leading-relaxed font-mono">
+          Press <kbd className="px-1 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px]">Ctrl+K</kbd> for command palette
         </p>
       </div>
     </aside>

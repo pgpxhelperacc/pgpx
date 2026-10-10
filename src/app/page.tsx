@@ -3,23 +3,27 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Calendar,
   Clock,
   FileCheck2,
   Bookmark,
-  MessageSquare,
   Sparkles,
+  Plus,
+  ExternalLink,
+  Search,
+  MapPin,
+  Calendar,
+  Layers,
   ArrowRight,
   ShieldCheck,
-  AlertTriangle,
-  MapPin,
-  ExternalLink,
-  Users,
+  Award,
+  MessageSquare,
 } from "lucide-react";
-import { CountdownTimer } from "@/components/ui/CountdownTimer";
+import { AddReminderModal } from "@/components/reminders/AddReminderModal";
+import { CreateAssignmentModal } from "@/components/modals/CreateAssignmentModal";
+import { CreateLinkModal } from "@/components/modals/CreateLinkModal";
+import { CreatePartyModal } from "@/components/modals/CreatePartyModal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
-  ScheduleEntry,
   Reminder,
   Assignment,
   ImportantLink,
@@ -27,412 +31,546 @@ import {
   UserProfile,
 } from "@/types";
 
+type ItemType = "reminder" | "assignment" | "link" | "party";
+
+interface UnifiedItem {
+  id: string;
+  type: ItemType;
+  title: string;
+  subtitle?: string;
+  dateStr?: string;
+  badge?: string;
+  category?: string;
+  url?: string;
+  creatorName?: string;
+  rawDate?: string;
+  venue?: string;
+  budget?: number;
+  weightage?: number;
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [nextClass, setNextClass] = useState<ScheduleEntry | null>(null);
-  const [todaySchedule, setTodaySchedule] = useState<ScheduleEntry[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [links, setLinks] = useState<ImportantLink[]>([]);
   const [partyEvents, setPartyEvents] = useState<PartyEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      try {
-        const [userRes, schRes, remRes, asgRes, lnkRes, ptyRes] = await Promise.all([
-          fetch("/api/auth/me"),
-          fetch("/api/schedule?filter=today"),
-          fetch("/api/reminders"),
-          fetch("/api/assignments"),
-          fetch("/api/links"),
-          fetch("/api/party"),
-        ]);
+  // Modals
+  const [openReminderModal, setOpenReminderModal] = useState(false);
+  const [openAssignmentModal, setOpenAssignmentModal] = useState(false);
+  const [openLinkModal, setOpenLinkModal] = useState(false);
+  const [openPartyModal, setOpenPartyModal] = useState(false);
 
-        const [userData, schData, remData, asgData, lnkData, ptyData] = await Promise.all([
-          userRes.json(),
-          schRes.json(),
-          remRes.json(),
-          asgRes.json(),
-          lnkRes.json(),
-          ptyRes.json(),
-        ]);
+  // Filter & Search
+  const [activeTab, setActiveTab] = useState<"all" | "reminders" | "assignments" | "links" | "party">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
-        if (userData.user) setUser(userData.user);
-        if (schData.schedule) setTodaySchedule(schData.schedule);
-        if (schData.nextClass) setNextClass(schData.nextClass);
-        if (remData.reminders) setReminders(remData.reminders.slice(0, 4));
-        if (asgData.assignments) setAssignments(asgData.assignments.slice(0, 3));
-        if (lnkData.links) setLinks(lnkData.links.slice(0, 4));
-        if (ptyData.events) setPartyEvents(ptyData.events.slice(0, 2));
-      } catch (err) {
-        console.error("Dashboard data load error", err);
-      } finally {
-        setLoading(false);
-      }
+  const loadData = async () => {
+    try {
+      const [uRes, rRes, aRes, lRes, pRes] = await Promise.all([
+        fetch("/api/auth/me"),
+        fetch("/api/reminders"),
+        fetch("/api/assignments"),
+        fetch("/api/links"),
+        fetch("/api/party"),
+      ]);
+
+      const [uData, rData, aData, lData, pData] = await Promise.all([
+        uRes.json(),
+        rRes.json(),
+        aRes.json(),
+        lRes.json(),
+        pRes.json(),
+      ]);
+
+      if (uData.user) setUser(uData.user);
+      if (rData.reminders) setReminders(rData.reminders);
+      if (aData.assignments) setAssignments(aData.assignments);
+      if (lData.links) setLinks(lData.links);
+      if (pData.events) setPartyEvents(pData.events);
+    } catch (err) {
+      console.error("Failed to load portal data", err);
+    } finally {
+      setLoading(false);
     }
-    loadDashboardData();
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
-  const expiringLinks = links.filter((l) => l.expires_at);
+  // Format Unified List
+  const unifiedItems: UnifiedItem[] = [
+    ...reminders.map((r) => ({
+      id: r.id,
+      type: "reminder" as ItemType,
+      title: r.title,
+      subtitle: r.description || undefined,
+      dateStr: new Date(r.due_at).toLocaleDateString("en-IN", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      badge: r.category,
+      category: r.category,
+      url: r.link,
+      creatorName: r.creator_name,
+      rawDate: r.due_at,
+    })),
+    ...assignments.map((a) => ({
+      id: a.id,
+      type: "assignment" as ItemType,
+      title: a.title,
+      subtitle: `${a.course_code} • ${a.type === "group" ? "Group Submission" : "Individual Submission"}`,
+      dateStr: new Date(a.due_at).toLocaleDateString("en-IN", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      badge: `${a.weightage}% Weight`,
+      category: "Assignment",
+      url: a.submission_url,
+      weightage: a.weightage,
+      rawDate: a.due_at,
+    })),
+    ...links.map((l) => ({
+      id: l.id,
+      type: "link" as ItemType,
+      title: l.title,
+      subtitle: l.category,
+      badge: l.category,
+      category: l.category,
+      url: l.url,
+      rawDate: l.created_at,
+    })),
+    ...partyEvents.map((p) => ({
+      id: p.id,
+      type: "party" as ItemType,
+      title: p.title,
+      subtitle: `${p.venue} • ₹${p.budget_per_head || 0}/head`,
+      dateStr: new Date(p.starts_at).toLocaleDateString("en-IN", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      badge: p.category,
+      category: "Social Plan",
+      venue: p.venue,
+      budget: p.budget_per_head,
+      rawDate: p.starts_at,
+    })),
+  ];
+
+  // Filter items by tab and search
+  const filteredItems = unifiedItems.filter((item) => {
+    if (activeTab === "reminders" && item.type !== "reminder") return false;
+    if (activeTab === "assignments" && item.type !== "assignment") return false;
+    if (activeTab === "links" && item.type !== "link") return false;
+    if (activeTab === "party" && item.type !== "party") return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchTitle = item.title.toLowerCase().includes(q);
+      const matchSub = item.subtitle?.toLowerCase().includes(q);
+      const matchBadge = item.badge?.toLowerCase().includes(q);
+      return matchTitle || matchSub || matchBadge;
+    }
+    return true;
+  });
 
   return (
-    <div className="space-y-6">
-      {/* Top Welcome & Context Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-black border border-white/10 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="space-y-1 relative z-10">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              {user?.batch || "PGPx06"} • {user?.term || "Term 4"}
-            </span>
-            <span className="text-xs text-zinc-400">• Section {user?.section || "A"}</span>
+    <div className="space-y-8 animate-in fade-in duration-150">
+      {/* Top Banner / Breadcrumb */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-500 mb-1">
+            <span>PORTAL</span>
+            <span>/</span>
+            <span className="text-white">DASHBOARD</span>
+            <span>/</span>
+            <span>{user?.batch || "PGPx06"}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Welcome back, {user?.name || "Student"}
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+            PGPx Student Portal
           </h1>
-          <p className="text-xs sm:text-sm text-zinc-400">
-            One place to know what&apos;s due, what&apos;s changed, and what&apos;s the link.
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Minimalist workspace • Create reminders, assignments, links & batch events.
           </p>
         </div>
 
-        {/* Quick Stats Grid */}
-        <div className="flex items-center gap-3 shrink-0 relative z-10">
-          <div className="px-4 py-2.5 rounded-xl bg-zinc-900/80 border border-white/10 text-center">
-            <div className="text-lg font-bold text-white font-mono">
-              {todaySchedule.length}
-            </div>
-            <div className="text-[10px] text-zinc-400 font-mono uppercase">Classes Today</div>
-          </div>
-          <div className="px-4 py-2.5 rounded-xl bg-zinc-900/80 border border-white/10 text-center">
-            <div className="text-lg font-bold text-amber-400 font-mono">
-              {assignments.length}
-            </div>
-            <div className="text-[10px] text-zinc-400 font-mono uppercase">Assignments Due</div>
-          </div>
-          <div className="px-4 py-2.5 rounded-xl bg-zinc-900/80 border border-white/10 text-center">
-            <div className="text-lg font-bold text-purple-400 font-mono">
-              {partyEvents.length}
-            </div>
-            <div className="text-[10px] text-zinc-400 font-mono uppercase">Batch Events</div>
+        <div className="flex items-center gap-2">
+          <div className="px-3 py-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300">
+            {unifiedItems.length} Total Items
           </div>
         </div>
       </div>
 
-      {/* Next Class Widget & Live Countdown */}
-      {nextClass ? (
-        <div className="p-5 rounded-2xl glass-panel border border-blue-500/30 bg-blue-950/15 relative overflow-hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  Next Up Today
-                </span>
-                <StatusBadge type="schedule" value={nextClass.status} />
-                {nextClass.changed_note && (
-                  <span className="text-[11px] text-amber-400 font-medium">
-                    ({nextClass.changed_note})
-                  </span>
-                )}
-              </div>
-              <h2 className="text-lg font-semibold text-white">
-                {nextClass.course_code}: {nextClass.course_name}
-              </h2>
-              <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400">
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-zinc-400" />
-                  {nextClass.room}
-                </span>
-                <span>•</span>
-                <span>{nextClass.faculty_name}</span>
-                <span>•</span>
-                <span className="font-mono text-zinc-300">
-                  {new Date(nextClass.starts_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  {" - "}
-                  {new Date(nextClass.ends_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <CountdownTimer
-                targetDate={nextClass.starts_at}
-                label="Class Starts in"
-                variant="pill"
-              />
-              <Link
-                href="/schedule"
-                className="p-2 rounded-lg bg-white/10 hover:bg-white/15 text-white transition-colors"
-                title="View Full Schedule"
-              >
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="p-4 rounded-xl bg-zinc-950 border border-white/10 flex items-center justify-between">
-          <div className="text-xs text-zinc-400">
-            No further lectures scheduled for today. Check upcoming sessions in the schedule tab.
-          </div>
-          <Link
-            href="/schedule"
-            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
-          >
-            Schedule <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-      )}
-
-      {/* Main Grid: Deadlines + Assignments + Links + Socials */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2 Cols): Urgent Dates & Upcoming Assignments */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Important Dates / Reminders */}
-          <div className="p-5 rounded-2xl glass-panel space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-400" />
-                <h3 className="text-sm font-semibold text-white">
-                  Important Dates & Deadlines
-                </h3>
-              </div>
-              <Link
-                href="/reminders"
-                className="text-xs text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
-              >
-                <span>View all ({reminders.length})</span>
-                <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-
-            <div className="space-y-2.5">
-              {reminders.map((rem) => (
-                <div
-                  key={rem.id}
-                  className="p-3.5 rounded-xl bg-zinc-900/60 hover:bg-zinc-900 border border-white/5 hover:border-white/15 transition-all flex items-start justify-between gap-3 group"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <StatusBadge type="category" value={rem.category} />
-                      {rem.is_verified && (
-                        <StatusBadge type="verification" value="verified" />
-                      )}
-                      <span className="text-[11px] text-zinc-400 font-mono">
-                        Added by {rem.creator_name}
-                      </span>
-                    </div>
-                    <div className="text-sm font-medium text-white group-hover:text-blue-300 transition-colors">
-                      {rem.title}
-                    </div>
-                    {rem.description && (
-                      <p className="text-xs text-zinc-400 line-clamp-1">
-                        {rem.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="shrink-0 text-right space-y-1">
-                    <CountdownTimer targetDate={rem.due_at} variant="compact" />
-                    <div className="text-[10px] text-zinc-400 font-mono">
-                      {new Date(rem.due_at).toLocaleDateString([], {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Upcoming Assignments */}
-          <div className="p-5 rounded-2xl glass-panel space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2">
-                <FileCheck2 className="w-4 h-4 text-purple-400" />
-                <h3 className="text-sm font-semibold text-white">
-                  Upcoming Assignments & Weights
-                </h3>
-              </div>
-              <Link
-                href="/assignments"
-                className="text-xs text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
-              >
-                <span>View all</span>
-                <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-
-            <div className="space-y-2.5">
-              {assignments.map((asg) => (
-                <div
-                  key={asg.id}
-                  className="p-3.5 rounded-xl bg-zinc-900/60 hover:bg-zinc-900 border border-white/5 hover:border-white/15 transition-all flex items-center justify-between gap-3"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                        {asg.course_code}
-                      </span>
-                      <span className="text-[10px] font-mono text-zinc-400 uppercase">
-                        {asg.type} • Weight {asg.weightage}%
-                      </span>
-                      <StatusBadge type="progress" value={asg.user_status || "not_started"} />
-                    </div>
-                    <div className="text-sm font-medium text-white">
-                      {asg.title}
-                    </div>
-                  </div>
-
-                  <div className="shrink-0 text-right space-y-1">
-                    <CountdownTimer targetDate={asg.due_at} variant="compact" />
-                    {asg.submission_url && (
-                      <a
-                        href={asg.submission_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] text-blue-400 hover:underline flex items-center justify-end gap-1"
-                      >
-                        Portal <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column (1 Col): Links, Chat Pill, Party Highlights */}
-        <div className="space-y-6">
-          {/* Anonymous Chat Quick Callout */}
-          <Link
-            href="/chat"
-            className="block p-5 rounded-2xl bg-gradient-to-br from-indigo-950/40 to-zinc-950 border border-indigo-500/30 hover:border-indigo-500/50 transition-all shadow-xl group"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="flex items-center gap-2 text-xs font-semibold text-indigo-300">
-                <MessageSquare className="w-4 h-4 text-indigo-400" />
-                Anonymous Batch Lounge
-              </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                24h Purge
-              </span>
-            </div>
-            <p className="text-xs text-zinc-300 leading-relaxed">
-              Real-time peer chat with daily rotating pseudonyms. All messages are hard-deleted every 24 hours.
-            </p>
-            <div className="mt-3 flex items-center gap-1.5 text-xs text-indigo-400 font-medium group-hover:translate-x-1 transition-transform">
-              <span>Open Batch Chat</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </div>
-          </Link>
-
-          {/* Expiring / Key Important Links */}
-          <div className="p-5 rounded-2xl glass-panel space-y-3">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-              <div className="flex items-center gap-2">
-                <Bookmark className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-sm font-semibold text-white">Important Links</h3>
-              </div>
-              <Link
-                href="/links"
-                className="text-xs text-zinc-400 hover:text-white transition-colors"
-              >
-                All Links
-              </Link>
-            </div>
-
-            {expiringLinks.length > 0 && (
-              <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 text-xs text-amber-300">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
-                <span>Notice: Placement resume drop portal closes soon!</span>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              {links.map((link) => (
-                <a
-                  key={link.id}
-                  href={link.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => {
-                    fetch("/api/links", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ id: link.id, action: "click" }),
-                    });
-                  }}
-                  className="p-2.5 rounded-xl bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/5 hover:border-white/15 transition-all flex items-center justify-between group"
-                >
-                  <div className="space-y-0.5 min-w-0 pr-2">
-                    <div className="text-xs font-medium text-white group-hover:text-emerald-300 truncate">
-                      {link.title}
-                    </div>
-                    <div className="text-[10px] font-mono text-zinc-400">
-                      {link.category} • {link.click_count} clicks
-                    </div>
-                  </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400 group-hover:text-white shrink-0" />
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Socials / Party Card */}
-          <div className="p-5 rounded-2xl glass-panel space-y-3">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <h3 className="text-sm font-semibold text-white">Batch Socials & Parties</h3>
-              </div>
-              <Link
-                href="/party"
-                className="text-xs text-zinc-400 hover:text-white transition-colors"
-              >
-                Explore
-              </Link>
-            </div>
-
-            {partyEvents.length > 0 ? (
-              partyEvents.map((evt) => (
-                <Link
-                  key={evt.id}
-                  href="/party"
-                  className="block p-3 rounded-xl bg-zinc-900/60 hover:bg-zinc-900 border border-white/5 hover:border-white/15 transition-all space-y-2 group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-amber-300">
-                      {evt.category}
-                    </span>
-                    <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      {evt.headcount.going} Going
-                    </span>
-                  </div>
-                  <div className="text-xs font-medium text-white group-hover:text-amber-300 transition-colors">
-                    {evt.title}
-                  </div>
-                  <div className="text-[11px] text-zinc-400 flex items-center justify-between">
-                    <span>{evt.venue}</span>
-                    <span className="font-mono text-zinc-400">
-                      ₹{evt.budget_per_head}/head
-                    </span>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <div className="text-xs text-zinc-500 py-3 text-center">
-                No events currently scheduled. Plan one!
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Mobile Portals Quick Bar (Shown on small screens where sidebar is hidden) */}
+      <div className="md:hidden flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-zinc-900">
+        <Link
+          href="/schedule"
+          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
+        >
+          Schedule
+        </Link>
+        <Link
+          href="/reminders"
+          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
+        >
+          Dates
+        </Link>
+        <Link
+          href="/assignments"
+          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
+        >
+          Assignments
+        </Link>
+        <Link
+          href="/links"
+          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
+        >
+          Links
+        </Link>
+        <Link
+          href="/feedback"
+          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
+        >
+          Feedback
+        </Link>
+        <Link
+          href="/party"
+          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
+        >
+          Socials
+        </Link>
+        <Link
+          href="/admin"
+          className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 whitespace-nowrap"
+        >
+          Admin
+        </Link>
       </div>
+
+      {/* TOP: FOUR ACTION BLOCKS (Vercel Style) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs uppercase font-mono tracking-wider text-zinc-400">
+            Quick Actions
+          </h2>
+          <span className="text-[11px] text-zinc-600 font-mono">Click to create</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Block 1: Create New Reminder */}
+          <button
+            onClick={() => setOpenReminderModal(true)}
+            className="group p-4 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-zinc-600 text-left transition-all active:scale-[0.99] flex flex-col justify-between h-32 hover:bg-zinc-900/60"
+          >
+            <div className="flex items-start justify-between w-full">
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white group-hover:bg-white group-hover:text-black transition-colors">
+                <Clock className="w-4 h-4" />
+              </div>
+              <span className="text-zinc-600 group-hover:text-white transition-colors">
+                <Plus className="w-4 h-4" />
+              </span>
+            </div>
+            <div>
+              <div className="font-semibold text-xs text-white">Create New Reminder</div>
+              <div className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1">
+                Add quiz, exam or task deadline
+              </div>
+            </div>
+          </button>
+
+          {/* Block 2: Create New Assignment */}
+          <button
+            onClick={() => setOpenAssignmentModal(true)}
+            className="group p-4 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-zinc-600 text-left transition-all active:scale-[0.99] flex flex-col justify-between h-32 hover:bg-zinc-900/60"
+          >
+            <div className="flex items-start justify-between w-full">
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white group-hover:bg-white group-hover:text-black transition-colors">
+                <FileCheck2 className="w-4 h-4" />
+              </div>
+              <span className="text-zinc-600 group-hover:text-white transition-colors">
+                <Plus className="w-4 h-4" />
+              </span>
+            </div>
+            <div>
+              <div className="font-semibold text-xs text-white">Create New Assignment</div>
+              <div className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1">
+                Deliverable, weightage & portal link
+              </div>
+            </div>
+          </button>
+
+          {/* Block 3: Create New Link */}
+          <button
+            onClick={() => setOpenLinkModal(true)}
+            className="group p-4 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-zinc-600 text-left transition-all active:scale-[0.99] flex flex-col justify-between h-32 hover:bg-zinc-900/60"
+          >
+            <div className="flex items-start justify-between w-full">
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white group-hover:bg-white group-hover:text-black transition-colors">
+                <Bookmark className="w-4 h-4" />
+              </div>
+              <span className="text-zinc-600 group-hover:text-white transition-colors">
+                <Plus className="w-4 h-4" />
+              </span>
+            </div>
+            <div>
+              <div className="font-semibold text-xs text-white">Create New Link</div>
+              <div className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1">
+                Share portal, drive sheet or resource
+              </div>
+            </div>
+          </button>
+
+          {/* Block 4: Create New Party / Social */}
+          <button
+            onClick={() => setOpenPartyModal(true)}
+            className="group p-4 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-zinc-600 text-left transition-all active:scale-[0.99] flex flex-col justify-between h-32 hover:bg-zinc-900/60"
+          >
+            <div className="flex items-start justify-between w-full">
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white group-hover:bg-white group-hover:text-black transition-colors">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <span className="text-zinc-600 group-hover:text-white transition-colors">
+                <Plus className="w-4 h-4" />
+              </span>
+            </div>
+            <div>
+              <div className="font-semibold text-xs text-white">Create New Party Chat</div>
+              <div className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1">
+                Plan batch dinner, trip or mixer
+              </div>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      {/* BELOW: LIST OF ITEMS CREATED BY EACH BLOCK */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+          {/* Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            <button
+              onClick={() => setActiveTab("all")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === "all"
+                  ? "bg-white text-black"
+                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
+              }`}
+            >
+              All ({unifiedItems.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("reminders")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === "reminders"
+                  ? "bg-white text-black"
+                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
+              }`}
+            >
+              Reminders ({reminders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("assignments")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === "assignments"
+                  ? "bg-white text-black"
+                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
+              }`}
+            >
+              Assignments ({assignments.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("links")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === "links"
+                  ? "bg-white text-black"
+                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
+              }`}
+            >
+              Links ({links.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("party")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === "party"
+                  ? "bg-white text-black"
+                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
+              }`}
+            >
+              Socials ({partyEvents.length})
+            </button>
+          </div>
+
+          {/* Search Box */}
+          <div className="relative w-full sm:w-64">
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search created items..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800 pl-9 pr-3 py-1.5 rounded-md text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+            />
+          </div>
+        </div>
+
+        {/* Content Stream */}
+        {loading ? (
+          <div className="p-12 text-center text-xs text-zinc-500 font-mono">
+            Loading portal items...
+          </div>
+        ) : filteredItems.length === 0 ? (
+          /* Clean Empty State */
+          <div className="p-12 rounded-xl border border-dashed border-zinc-800 bg-zinc-950/50 text-center space-y-4">
+            <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div className="space-y-1 max-w-sm mx-auto">
+              <h3 className="text-sm font-semibold text-white">No items created yet</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                This portal is completely fresh. Use the 4 action blocks above to publish your first reminder, assignment deliverable, link, or batch party.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => setOpenReminderModal(true)}
+                className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+              >
+                + New Reminder
+              </button>
+              <button
+                onClick={() => setOpenAssignmentModal(true)}
+                className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+              >
+                + New Assignment
+              </button>
+              <button
+                onClick={() => setOpenLinkModal(true)}
+                className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+              >
+                + New Link
+              </button>
+              <button
+                onClick={() => setOpenPartyModal(true)}
+                className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+              >
+                + New Party
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* List of Items */
+          <div className="space-y-2">
+            {filteredItems.map((item) => (
+              <div
+                key={`${item.type}-${item.id}`}
+                className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 hover:border-zinc-700 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+              >
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-900 text-zinc-400 border border-zinc-800 uppercase">
+                      {item.type}
+                    </span>
+                    {item.badge && (
+                      <span className="text-[10px] font-mono text-zinc-400">
+                        {item.badge}
+                      </span>
+                    )}
+                    {item.dateStr && (
+                      <span className="text-[11px] font-mono text-zinc-500">
+                        • {item.dateStr}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-xs font-semibold text-white truncate">
+                    {item.title}
+                  </h3>
+                  {item.subtitle && (
+                    <p className="text-[11px] text-zinc-400 line-clamp-1">
+                      {item.subtitle}
+                    </p>
+                  )}
+                </div>
+
+                {/* Item Actions */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {item.url && (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs transition-colors"
+                    >
+                      <span>Open</span>
+                      <ExternalLink className="w-3 h-3 text-zinc-500" />
+                    </a>
+                  )}
+
+                  {item.type === "reminder" && (
+                    <Link
+                      href="/reminders"
+                      className="px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs transition-colors"
+                    >
+                      Details
+                    </Link>
+                  )}
+
+                  {item.type === "assignment" && (
+                    <Link
+                      href="/assignments"
+                      className="px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs transition-colors"
+                    >
+                      View Deliverable
+                    </Link>
+                  )}
+
+                  {item.type === "party" && (
+                    <Link
+                      href="/party"
+                      className="px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs transition-colors"
+                    >
+                      RSVP / Join
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* MODALS */}
+      <AddReminderModal
+        isOpen={openReminderModal}
+        onClose={() => setOpenReminderModal(false)}
+        onReminderAdded={loadData}
+      />
+
+      <CreateAssignmentModal
+        isOpen={openAssignmentModal}
+        onClose={() => setOpenAssignmentModal(false)}
+        onCreated={loadData}
+      />
+
+      <CreateLinkModal
+        isOpen={openLinkModal}
+        onClose={() => setOpenLinkModal(false)}
+        onCreated={loadData}
+      />
+
+      <CreatePartyModal
+        isOpen={openPartyModal}
+        onClose={() => setOpenPartyModal(false)}
+        onCreated={loadData}
+      />
     </div>
   );
 }

@@ -33,14 +33,14 @@ export function BottomNav() {
               href={item.href}
               className={`flex flex-col items-center justify-center w-16 h-12 rounded-lg transition-all ${
                 isActive
-                  ? "text-blue-400 font-medium"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "text-white font-medium"
+                  : "text-zinc-500 hover:text-zinc-300"
               }`}
             >
               <div className="relative">
-                <Icon className={`w-5 h-5 ${isActive ? "text-blue-400 scale-110" : ""}`} />
+                <Icon className={`w-5 h-5 ${isActive ? "text-white scale-110" : ""}`} />
                 {isActive && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white" />
                 )}
               </div>
               <span className="text-[10px] mt-1">{item.label}</span>

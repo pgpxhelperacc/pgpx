@@ -34,10 +34,10 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-2xl bg-zinc-950 border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+        className="w-full max-w-lg rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between px-6 pt-5 pb-3 border-b border-white/10">
+        <div className="flex items-start justify-between px-6 pt-5 pb-3 border-b border-zinc-800">
           <div>
             <h3 className="text-base font-semibold text-white tracking-tight">{title}</h3>
             {description && (

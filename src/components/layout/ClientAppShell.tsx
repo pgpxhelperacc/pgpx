@@ -6,6 +6,7 @@ import { Header } from "./Header";
 import { BottomNav } from "./BottomNav";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { AddReminderModal } from "@/components/reminders/AddReminderModal";
+import { AnonymousChatPopup } from "@/components/chat/AnonymousChatPopup";
 import { UserProfile } from "@/types";
 
 export function ClientAppShell({ children }: { children: ReactNode }) {
@@ -77,6 +78,8 @@ export function ClientAppShell({ children }: { children: ReactNode }) {
           }
         }}
       />
+      {/* Floating Anonymous Group Chat Pop-up (Bottom-Right) */}
+      <AnonymousChatPopup />
     </div>
   );
 }

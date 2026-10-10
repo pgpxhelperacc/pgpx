@@ -126,9 +126,9 @@ export function CommandPalette({
                     <button
                       key={idx}
                       onClick={item.action}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-zinc-300 hover:text-white hover:bg-white/10 transition-colors text-left"
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-zinc-300 hover:text-white hover:bg-zinc-900 transition-colors text-left"
                     >
-                      <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      <div className="p-1.5 rounded-md bg-zinc-800 text-white border border-zinc-700">
                         <Icon className="w-3.5 h-3.5" />
                       </div>
                       <span>{item.label}</span>

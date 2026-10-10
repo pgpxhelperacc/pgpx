@@ -146,7 +146,6 @@ describe("Acceptance Criterion 3: Faculty Feedback Anonymity & Safeguards", () =
   });
 
   it("hides aggregated feedback summary when responses are fewer than 5 (privacy threshold)", () => {
-    // Course c-2 has only 2 seed responses
     const summary = db.getFacultyFeedbackSummary("c-2", "fac-2", "Term 4");
     expect(summary.status).toBe("insufficient_responses");
     expect(summary.count).toBeLessThan(5);
@@ -155,7 +154,20 @@ describe("Acceptance Criterion 3: Faculty Feedback Anonymity & Safeguards", () =
   });
 
   it("reveals aggregated feedback summary when responses reach or exceed 5 without disclosing user identities", () => {
-    // Course c-1 has 5 seed responses
+    // Dynamically submit 5 responses
+    for (let i = 1; i <= 5; i++) {
+      db.submitFeedback(
+        {
+          course_id: "c-1",
+          faculty_id: "fac-1",
+          term: "Term 4",
+          ratings: { content_clarity: 5, pace: 4, engagement: 5, assessment_fairness: 4, practical_relevance: 5 },
+          comment: `Great course feedback from student ${i}`,
+        },
+        `u-anonymous-student-${i}`
+      );
+    }
+
     const summary = db.getFacultyFeedbackSummary("c-1", "fac-1", "Term 4");
     expect(summary.status).toBe("ready");
     expect(summary.count).toBeGreaterThanOrEqual(5);
