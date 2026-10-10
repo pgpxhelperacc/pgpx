@@ -118,7 +118,7 @@ export function Sidebar({ userRole = "student" }: SidebarProps) {
       <div className="p-3 border-t border-[#1c1c1f] text-xs text-[#71717a] flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-[11px] text-[#8e8e93]">
           <span className="w-1.5 h-1.5 rounded-full bg-white" />
-          PGPx06 Term 4
+          PGPx Batch Portal
         </span>
         <span className="font-mono text-[10px] text-[#52525b]">v1.0</span>
       </div>

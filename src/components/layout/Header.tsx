@@ -20,9 +20,9 @@ export function Header({
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const personas = [
-    { id: "u-rahul", name: "Rahul Verma", role: "student", roll: "PGPX06012" },
-    { id: "u-ananya", name: "Ananya Sharma", role: "cr", roll: "PGPX06005" },
-    { id: "u-admin", name: "PGPx Academic Office", role: "admin", roll: "ADMIN001" },
+    { id: "u-batch", name: "Batch Member", role: "student", roll: "STUDENT" },
+    { id: "u-cr", name: "Class Representative", role: "cr", roll: "CR" },
+    { id: "u-admin", name: "PGPx Academic Office", role: "admin", roll: "ADMIN" },
   ];
 
   const switchUser = async (userId: string) => {
@@ -110,7 +110,7 @@ export function Header({
                     {currentUser.roll_no}
                   </span>
                   <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[10px] font-mono">
-                    {currentUser.batch} • {currentUser.term}
+                    {currentUser.batch}{currentUser.term ? ` • ${currentUser.term}` : ""}
                   </span>
                 </div>
               </div>

@@ -6,7 +6,7 @@ import { isValidInstituteEmail } from "@/lib/security";
 function getCurrentUser() {
   const cookieStore = cookies();
   const userIdCookie = cookieStore.get("pgpx_user_id");
-  return (userIdCookie ? db.getUserById(userIdCookie.value) : null) || db.getUserById("u-rahul")!;
+  return (userIdCookie ? db.getUserById(userIdCookie.value) : null) || db.getUserById("u-batch") || db.getUsers()[0];
 }
 
 export async function GET() {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const entry = db.addAllowlistEntry({
+    const entry = db.addToAllowlist({
       email: email.toLowerCase(),
       roll_no,
       name,

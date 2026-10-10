@@ -11,13 +11,13 @@ import { UserProfile } from "@/types";
 
 export function ClientAppShell({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<UserProfile>({
-    id: "u-rahul",
-    email: "rahul.v24@iimrohtak.ac.in",
-    name: "Rahul Verma",
-    roll_no: "PGPX06012",
+    id: "u-batch",
+    email: "student@iimrohtak.ac.in",
+    name: "PGPx Student",
+    roll_no: "PGPx",
     role: "student",
-    batch: "PGPx06",
-    term: "Term 4",
+    batch: "PGPx",
+    term: "",
     section: "A",
   });
 

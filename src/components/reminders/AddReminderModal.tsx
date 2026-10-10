@@ -19,7 +19,7 @@ export function AddReminderModal({
   const [category, setCategory] = useState<ReminderCategory>("Quiz");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("23:59");
-  const [courseCode, setCourseCode] = useState("c-1");
+  const [courseCode, setCourseCode] = useState("");
   const [description, setDescription] = useState("");
   const [link, setLink] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,7 +44,7 @@ export function AddReminderModal({
           title,
           category,
           due_at: fullDueDate,
-          course_id: courseCode,
+          course_id: courseCode || undefined,
           description,
           link,
         }),
@@ -58,6 +58,7 @@ export function AddReminderModal({
       setTitle("");
       setDescription("");
       setLink("");
+      setCourseCode("");
       onClose();
       if (onReminderAdded) onReminderAdded();
     } catch (err: any) {
@@ -82,38 +83,38 @@ export function AddReminderModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Add Important Date or Deadline"
-      description="Contribute a quiz date, submission deadline, or batch event. CRs can verify entries to prevent date tampering."
+      description="Publish an upcoming quiz date, project submission, or exam window for the batch."
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         {error && (
-          <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+          <div className="p-2.5 rounded-lg bg-[#141416] border border-[#26262a] text-zinc-300 text-xs">
             {error}
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+          <label className="block text-xs font-medium text-zinc-300 mb-1">
             Event Title *
           </label>
           <input
             type="text"
             required
-            placeholder="e.g. STRAT-601 Case 3 Group Submission"
+            placeholder="e.g. Case Study 3 Submission / Quiz 1"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3.5 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#222226] text-xs text-white placeholder-[#52525b] focus:outline-none focus:border-[#3a3a42]"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+            <label className="block text-xs font-medium text-zinc-300 mb-1">
               Category *
             </label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as ReminderCategory)}
-              className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full px-2.5 py-2 rounded-lg bg-[#121214] border border-[#222226] text-xs text-white focus:outline-none"
             >
               {categories.map((c) => (
                 <option key={c} value={c}>
@@ -124,27 +125,22 @@ export function AddReminderModal({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-              Course (Optional)
+            <label className="block text-xs font-medium text-zinc-300 mb-1">
+              Subject / Course (Optional)
             </label>
-            <select
+            <input
+              type="text"
+              placeholder="e.g. Marketing, Finance, etc."
               value={courseCode}
               onChange={(e) => setCourseCode(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-xs text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="c-1">STRAT-601 (Strategic Mgmt)</option>
-              <option value="c-2">FIN-602 (Corporate Valuation)</option>
-              <option value="c-3">OPS-603 (Supply Chain)</option>
-              <option value="c-4">MKT-604 (Digital Marketing)</option>
-              <option value="c-5">LEAD-605 (Executive Leadership)</option>
-              <option value="">None / General Batch</option>
-            </select>
+              className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#222226] text-xs text-white placeholder-[#52525b] focus:outline-none"
+            />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+            <label className="block text-xs font-medium text-zinc-300 mb-1">
               Due Date *
             </label>
             <input
@@ -152,63 +148,63 @@ export function AddReminderModal({
               required
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full px-2.5 py-2 rounded-lg bg-[#121214] border border-[#222226] text-xs text-white focus:outline-none font-mono"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-              Time (24h)
+            <label className="block text-xs font-medium text-zinc-300 mb-1">
+              Time
             </label>
             <input
               type="time"
               value={dueTime}
               onChange={(e) => setDueTime(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full px-2.5 py-2 rounded-lg bg-[#121214] border border-[#222226] text-xs text-white focus:outline-none font-mono"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-            Portal Link / Moodle URL (Optional)
+          <label className="block text-xs font-medium text-zinc-300 mb-1">
+            Reference Link / Submission Portal (Optional)
           </label>
           <input
             type="url"
-            placeholder="https://moodle.iimrohtak.ac.in/..."
+            placeholder="https://..."
             value={link}
             onChange={(e) => setLink(e.target.value)}
-            className="w-full px-3.5 py-2 rounded-lg bg-zinc-900 border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#222226] text-xs text-white placeholder-[#52525b] focus:outline-none font-mono"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-            Brief Notes / Instructions
+          <label className="block text-xs font-medium text-zinc-300 mb-1">
+            Notes / Guidelines (Optional)
           </label>
           <textarea
             rows={2}
-            placeholder="Format requirements, team guidelines, or submission portal link..."
+            placeholder="Format requirements, team guidelines, or case details..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full px-3.5 py-2 rounded-lg bg-zinc-900 border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 resize-none"
+            className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#222226] text-xs text-white placeholder-[#52525b] focus:outline-none resize-none"
           />
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#1c1c20]">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-xs text-zinc-400 hover:text-white transition-colors"
+            className="px-3 py-1.5 rounded-lg text-xs text-[#71717a] hover:text-white transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-all active:scale-95 disabled:opacity-50"
+            className="px-4 py-1.5 rounded-lg bg-white hover:bg-[#eaeaea] text-black font-medium text-xs transition-colors disabled:opacity-50"
           >
-            {loading ? "Publishing..." : "Publish Reminder"}
+            {loading ? "Publishing..." : "Publish Date"}
           </button>
         </div>
       </form>

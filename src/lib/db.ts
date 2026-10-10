@@ -8,10 +8,11 @@ import {
   ImportantLink,
   FeedbackSubmission,
   FeedbackSummary,
+  FeedbackThread,
+  FeedbackComment,
   ScheduleEntry,
   SemesterCalendarItem,
   Assignment,
-  AlertPreferences,
   PartyEvent,
   PartyRSVPStatus,
   PartyMessage,
@@ -19,52 +20,36 @@ import {
   ReportItem,
   AuditLogEntry,
 } from "@/types";
-import { computeFeedbackHash, generateDailyPseudonym, sanitizeText } from "./security";
+import { generateDailyPseudonym, sanitizeText, computeFeedbackHash } from "./security";
 
-// Base academic structure (standard term references)
-const SEED_FACULTY: Faculty[] = [
-  { id: "fac-1", name: "Prof. K. Mukherjee", department: "Strategic Management" },
-  { id: "fac-2", name: "Prof. R. Sharma", department: "Finance & Corporate Valuation" },
-  { id: "fac-3", name: "Prof. A. Verma", department: "Operations & Supply Chain" },
-  { id: "fac-4", name: "Prof. P. Gupta", department: "Marketing Management" },
-  { id: "fac-5", name: "Prof. S. Sen", department: "Organizational Leadership" },
-];
-
-const SEED_COURSES: Course[] = [
-  { id: "c-1", code: "STRAT-601", name: "Strategic Management & Global Execution", term: "Term 4", credits: 3.0, faculty_ids: ["fac-1"] },
-  { id: "c-2", code: "FIN-602", name: "Corporate Valuation, M&A and Private Equity", term: "Term 4", credits: 3.0, faculty_ids: ["fac-2"] },
-  { id: "c-3", code: "OPS-603", name: "Supply Chain Analytics & Optimization", term: "Term 4", credits: 3.0, faculty_ids: ["fac-3"] },
-  { id: "c-4", code: "MKT-604", name: "Digital Marketing & Customer Growth Engines", term: "Term 4", credits: 3.0, faculty_ids: ["fac-4"] },
-  { id: "c-5", code: "LEAD-605", name: "Executive Leadership in High-Performing Teams", term: "Term 4", credits: 2.0, faculty_ids: ["fac-5"] },
-];
+// Base academic structure (Zero dummy data - clean fresh portal)
+const SEED_FACULTY: Faculty[] = [];
+const SEED_COURSES: Course[] = [];
 
 const SEED_ALLOWLIST: AllowlistEntry[] = [
-  { id: "al-1", email: "rahul.v24@iimrohtak.ac.in", roll_no: "PGPX06012", name: "Rahul Verma", role: "student" },
-  { id: "al-2", email: "ananya.s24@iimrohtak.ac.in", roll_no: "PGPX06005", name: "Ananya Sharma", role: "cr" },
-  { id: "al-3", email: "pgpx.admin@iimrohtak.ac.in", roll_no: "ADMIN001", name: "PGPx Academic Office", role: "admin" },
+  { id: "al-1", email: "student@iimrohtak.ac.in", roll_no: "PGPX-01", name: "PGPx Student", role: "student" },
+  { id: "al-2", email: "cr@iimrohtak.ac.in", roll_no: "PGPX-CR", name: "Class Representative", role: "cr" },
+  { id: "al-3", email: "pgpx.admin@iimrohtak.ac.in", roll_no: "ADMIN-01", name: "PGPx Academic Office", role: "admin" },
 ];
 
 const SEED_USERS: UserProfile[] = [
-  { id: "u-rahul", email: "rahul.v24@iimrohtak.ac.in", name: "Rahul Verma", roll_no: "PGPX06012", role: "student", batch: "PGPx06", term: "Term 4", section: "A" },
-  { id: "u-ananya", email: "ananya.s24@iimrohtak.ac.in", name: "Ananya Sharma", roll_no: "PGPX06005", role: "cr", batch: "PGPx06", term: "Term 4", section: "A" },
-  { id: "u-admin", email: "pgpx.admin@iimrohtak.ac.in", name: "PGPx Academic Office", roll_no: "ADMIN001", role: "admin", batch: "PGPx06", term: "Term 4", section: "A" },
+  { id: "u-batch", email: "student@iimrohtak.ac.in", name: "Batch Member", roll_no: "PGPx", role: "student", batch: "PGPx", term: "", section: "A" },
+  { id: "u-cr", email: "cr@iimrohtak.ac.in", name: "Class Representative", roll_no: "PGPx-CR", role: "cr", batch: "PGPx", term: "", section: "A" },
+  { id: "u-admin", email: "pgpx.admin@iimrohtak.ac.in", name: "PGPx Academic Office", roll_no: "ADMIN", role: "admin", batch: "PGPx", term: "", section: "A" },
 ];
 
-interface FeedbackRow {
+interface FeedbackThreadRecord {
   id: string;
-  course_id: string;
-  faculty_id: string;
-  term: string;
-  ratings: {
-    content_clarity: number;
-    pace: number;
-    engagement: number;
-    assessment_fairness: number;
-    practical_relevance: number;
-  };
-  comment?: string;
-  submitter_hash: string;
-  hidden: boolean;
+  subject_name: string;
+  faculty_name: string;
+  title: string;
+  review: string;
+  rating?: number;
+  author_pseudonym: string;
+  upvotes: number;
+  downvotes: number;
+  voters: Record<string, "up" | "down">;
+  comments: FeedbackComment[];
   created_at: string;
 }
 
@@ -82,7 +67,8 @@ class LocalDatabaseStore {
   private assignments: Assignment[] = [];
   private partyEvents: PartyEvent[] = [];
   private chatMessages: ChatMessage[] = [];
-  private feedback: FeedbackRow[] = [];
+  private feedbackThreads: FeedbackThreadRecord[] = [];
+  private legacyFeedbackSubmissions: FeedbackSubmission[] = [];
   private reports: ReportItem[] = [];
   private auditLogs: AuditLogEntry[] = [];
 
@@ -109,11 +95,11 @@ class LocalDatabaseStore {
     const newUser: UserProfile = {
       id: user.id || `u-${Date.now()}`,
       email: user.email.toLowerCase(),
-      name: user.name || (allowlisted?.name ?? "PGPx Student"),
-      roll_no: user.roll_no || (allowlisted?.roll_no ?? `PGPX06${Math.floor(100 + Math.random() * 900)}`),
+      name: user.name || (allowlisted?.name ?? "PGPx Member"),
+      roll_no: user.roll_no || (allowlisted?.roll_no ?? "PGPx"),
       role: user.role || (allowlisted?.role ?? "student"),
-      batch: user.batch || "PGPx06",
-      term: user.term || "Term 4",
+      batch: user.batch || "PGPx",
+      term: user.term || "",
       section: user.section || "A",
       created_at: new Date().toISOString(),
     };
@@ -121,17 +107,40 @@ class LocalDatabaseStore {
     return newUser;
   }
 
+  // ALLOWLIST
   getAllowlist(): AllowlistEntry[] {
     return this.allowlist;
   }
 
-  addAllowlistEntry(entry: Omit<AllowlistEntry, "id">): AllowlistEntry {
-    const newEntry: AllowlistEntry = { ...entry, id: `al-${Date.now()}` };
+  addToAllowlist(entry: Omit<AllowlistEntry, "id">): AllowlistEntry {
+    const existing = this.allowlist.find((a) => a.email.toLowerCase() === entry.email.toLowerCase());
+    if (existing) {
+      Object.assign(existing, entry);
+      return existing;
+    }
+    const newEntry: AllowlistEntry = {
+      ...entry,
+      id: `al-${Date.now()}`,
+      email: entry.email.toLowerCase(),
+    };
     this.allowlist.push(newEntry);
     return newEntry;
   }
 
-  // ACADEMICS
+  addAllowlistEntry(entry: Omit<AllowlistEntry, "id">): AllowlistEntry {
+    return this.addToAllowlist(entry);
+  }
+
+  removeFromAllowlist(email: string): boolean {
+    const idx = this.allowlist.findIndex((a) => a.email.toLowerCase() === email.toLowerCase());
+    if (idx >= 0) {
+      this.allowlist.splice(idx, 1);
+      return true;
+    }
+    return false;
+  }
+
+  // COURSES & FACULTY
   getCourses(): Course[] {
     return this.courses;
   }
@@ -140,11 +149,25 @@ class LocalDatabaseStore {
     return this.faculty;
   }
 
-  // REMINDERS
+  addCourse(course: Course): Course {
+    this.courses.push(course);
+    return course;
+  }
+
+  addFaculty(faculty: Faculty): Faculty {
+    this.faculty.push(faculty);
+    return faculty;
+  }
+
+  // REMINDERS / IMPORTANT DATES
   getReminders(): Reminder[] {
     return [...this.reminders].sort(
       (a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime()
     );
+  }
+
+  getReminderById(id: string): Reminder | undefined {
+    return this.reminders.find((r) => r.id === id);
   }
 
   addReminder(
@@ -187,10 +210,8 @@ class LocalDatabaseStore {
     const reminder = this.reminders.find((r) => r.id === id);
     if (!reminder) return { success: false, error: "Reminder not found" };
 
-    const isOwner = reminder.created_by === actorId;
-    const isModerator = actorRole === "cr" || actorRole === "admin";
-    if (!isOwner && !isModerator) {
-      return { success: false, error: "Forbidden: Only creator, CR or Admin can edit this reminder" };
+    if (actorRole !== "cr" && actorRole !== "admin" && reminder.created_by !== actorId) {
+      return { success: false, error: "Forbidden: You can only edit your own reminder unless you are a CR or Admin" };
     }
 
     const diff: { field: string; old_value: any; new_value: any }[] = [];
@@ -211,14 +232,6 @@ class LocalDatabaseStore {
         changed_at: new Date().toISOString(),
       };
       this.reminderHistory.push(historyEntry);
-
-      this.logAuditEvent({
-        actor_id: actorId,
-        actor_name: actorName,
-        action: "UPDATE_REMINDER",
-        target: id,
-        metadata: { diff },
-      });
     }
 
     return { success: true, reminder };
@@ -232,88 +245,68 @@ class LocalDatabaseStore {
   ): { success: boolean; error?: string } {
     const index = this.reminders.findIndex((r) => r.id === id);
     if (index === -1) return { success: false, error: "Reminder not found" };
-
     const reminder = this.reminders[index];
-    const isOwner = reminder.created_by === actorId;
-    const isModerator = actorRole === "cr" || actorRole === "admin";
-    if (!isOwner && !isModerator) {
-      return { success: false, error: "Forbidden: Only creator, CR or Admin can delete this reminder" };
+    if (actorRole !== "cr" && actorRole !== "admin" && reminder.created_by !== actorId) {
+      return { success: false, error: "Forbidden: You can only delete your own reminder unless you are a CR or Admin" };
     }
-
     this.reminders.splice(index, 1);
-    this.logAuditEvent({
-      actor_id: actorId,
-      actor_name: actorName,
-      action: "DELETE_REMINDER",
-      target: id,
-    });
-
     return { success: true };
   }
 
-  verifyReminder(
-    id: string,
-    verifierId: string,
-    verifierName: string
-  ): { success: boolean; reminder?: Reminder; error?: string } {
+  verifyReminder(id: string, verifiedBy: string, verifiedByName: string): Reminder | null {
     const reminder = this.reminders.find((r) => r.id === id);
-    if (!reminder) return { success: false, error: "Reminder not found" };
-
+    if (!reminder) return null;
     reminder.is_verified = true;
-    reminder.verified_by = verifierId;
-    reminder.verified_by_name = `${verifierName} (CR Verified)`;
+    reminder.verified_by = verifiedBy;
+    reminder.verified_by_name = verifiedByName;
     reminder.updated_at = new Date().toISOString();
+    return reminder;
+  }
 
-    return { success: true, reminder };
+  toggleReminderSubscription(id: string, userId: string): boolean {
+    const reminder = this.reminders.find((r) => r.id === id);
+    if (!reminder) return false;
+    reminder.user_subscribed = !reminder.user_subscribed;
+    return !!reminder.user_subscribed;
   }
 
   getReminderHistory(reminderId: string): ReminderHistoryEntry[] {
-    return this.reminderHistory
-      .filter((h) => h.reminder_id === reminderId)
-      .sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime());
-  }
-
-  toggleReminderSubscription(reminderId: string, userId: string): boolean {
-    const reminder = this.reminders.find((r) => r.id === reminderId);
-    if (reminder) {
-      reminder.user_subscribed = !reminder.user_subscribed;
-      return !!reminder.user_subscribed;
-    }
-    return false;
+    return this.reminderHistory.filter((h) => h.reminder_id === reminderId);
   }
 
   // IMPORTANT LINKS
   getLinks(): ImportantLink[] {
     const now = new Date();
-    this.links.forEach((l) => {
-      if (l.expires_at && new Date(l.expires_at) < now && l.status === "active") {
-        l.status = "archived";
-      }
-    });
-
-    return [...this.links].sort((a, b) => {
-      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-      return b.click_count - a.click_count;
-    });
+    return [...this.links]
+      .filter((l) => !l.expires_at || new Date(l.expires_at) >= now)
+      .sort((a, b) => {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        return b.click_count - a.click_count;
+      });
   }
 
-  addLink(
-    data: Omit<ImportantLink, "id" | "click_count" | "created_at">,
-    actorId: string,
-    actorName: string
-  ): ImportantLink {
+  addLink(data: Omit<ImportantLink, "id" | "click_count" | "created_at">, actorId: string, actorName: string): ImportantLink {
     const newLink: ImportantLink = {
       ...data,
       id: `lnk-${Date.now()}`,
       title: sanitizeText(data.title),
-      url: sanitizeText(data.url),
+      url: data.url.trim(),
+      click_count: 0,
       created_by: actorId,
       creator_name: actorName,
-      click_count: 0,
       created_at: new Date().toISOString(),
     };
     this.links.push(newLink);
     return newLink;
+  }
+
+  trackLinkClick(id: string): boolean {
+    const link = this.links.find((l) => l.id === id);
+    if (link) {
+      link.click_count += 1;
+      return true;
+    }
+    return false;
   }
 
   incrementLinkClick(id: string): number {
@@ -325,100 +318,212 @@ class LocalDatabaseStore {
     return 0;
   }
 
-  // FACULTY FEEDBACK (Guaranteed Anonymity)
-  submitFeedback(
-    submission: FeedbackSubmission,
-    userId: string
-  ): { success: boolean; error?: string } {
-    const submitterHash = computeFeedbackHash(
-      userId,
-      submission.course_id,
-      submission.faculty_id,
-      submission.term
-    );
+  archiveExpiredLinks(): number {
+    const now = new Date();
+    let archivedCount = 0;
+    this.links.forEach((l) => {
+      if (l.expires_at && new Date(l.expires_at) < now && l.status !== "archived") {
+        l.status = "archived";
+        archivedCount++;
+      }
+    });
+    return archivedCount;
+  }
 
-    const alreadySubmitted = this.feedback.some(
-      (fb) =>
-        fb.course_id === submission.course_id &&
-        fb.faculty_id === submission.faculty_id &&
-        fb.term === submission.term &&
-        fb.submitter_hash === submitterHash
-    );
+  // COMMUNITY FACULTY & SUBJECT FEEDBACK THREADS
+  getFeedbackThreads(voterId?: string): FeedbackThread[] {
+    return [...this.feedbackThreads]
+      .map((t) => {
+        const userVote = voterId && t.voters ? t.voters[voterId] : null;
+        return {
+          id: t.id,
+          subject_name: t.subject_name,
+          faculty_name: t.faculty_name,
+          title: t.title,
+          review: t.review,
+          rating: t.rating,
+          author_pseudonym: t.author_pseudonym,
+          upvotes: t.upvotes,
+          downvotes: t.downvotes,
+          voted: userVote,
+          comments: t.comments,
+          created_at: t.created_at,
+        };
+      })
+      .sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
+  }
 
-    if (alreadySubmitted) {
-      return { success: false, error: "You have already submitted anonymous feedback for this faculty/course." };
-    }
-
-    const row: FeedbackRow = {
-      id: `fb-${Date.now()}`,
-      course_id: submission.course_id,
-      faculty_id: submission.faculty_id,
-      term: submission.term,
-      ratings: submission.ratings,
-      comment: sanitizeText(submission.comment),
-      submitter_hash: submitterHash,
-      hidden: false,
+  createFeedbackThread(
+    data: { subject_name: string; faculty_name: string; title: string; review: string; rating?: number },
+    authorPseudonym: string
+  ): FeedbackThread {
+    const newThread: FeedbackThreadRecord = {
+      id: `fbt-${Date.now()}`,
+      subject_name: sanitizeText(data.subject_name),
+      faculty_name: sanitizeText(data.faculty_name),
+      title: sanitizeText(data.title),
+      review: sanitizeText(data.review),
+      rating: data.rating,
+      author_pseudonym: authorPseudonym,
+      upvotes: 1,
+      downvotes: 0,
+      voters: {},
+      comments: [],
       created_at: new Date().toISOString(),
     };
+    this.feedbackThreads.push(newThread);
+    return {
+      ...newThread,
+      voted: "up",
+    };
+  }
 
-    this.feedback.push(row);
+  voteFeedbackThread(threadId: string, voterId: string, direction: "up" | "down"): boolean {
+    const thread = this.feedbackThreads.find((t) => t.id === threadId);
+    if (!thread) return false;
+    if (!thread.voters) thread.voters = {};
+
+    const existing = thread.voters[voterId];
+    if (existing === direction) {
+      // Toggle off
+      delete thread.voters[voterId];
+      if (direction === "up") thread.upvotes = Math.max(0, thread.upvotes - 1);
+      if (direction === "down") thread.downvotes = Math.max(0, thread.downvotes - 1);
+      return true;
+    }
+
+    if (existing) {
+      // Switch vote
+      if (existing === "up") thread.upvotes = Math.max(0, thread.upvotes - 1);
+      if (existing === "down") thread.downvotes = Math.max(0, thread.downvotes - 1);
+    }
+
+    thread.voters[voterId] = direction;
+    if (direction === "up") thread.upvotes += 1;
+    if (direction === "down") thread.downvotes += 1;
+    return true;
+  }
+
+  addFeedbackComment(threadId: string, authorPseudonym: string, body: string): FeedbackComment | null {
+    const thread = this.feedbackThreads.find((t) => t.id === threadId);
+    if (!thread) return null;
+    if (!thread.comments) thread.comments = [];
+
+    const comment: FeedbackComment = {
+      id: `fbc-${Date.now()}`,
+      author_pseudonym: authorPseudonym,
+      body: sanitizeText(body),
+      created_at: new Date().toISOString(),
+    };
+    thread.comments.push(comment);
+    return comment;
+  }
+
+  submitFeedback(
+    submission: Partial<FeedbackSubmission>,
+    userId: string
+  ): { success: boolean; error?: string } {
+    const courseId = submission.course_id || "";
+    const facultyId = submission.faculty_id || "";
+    const term = submission.term || "";
+
+    const hash = computeFeedbackHash(userId, courseId, facultyId, term);
+    const existing = this.legacyFeedbackSubmissions.find((s) => s.user_hash === hash);
+    if (existing) {
+      return { success: false, error: "You have already submitted feedback for this course/faculty" };
+    }
+
+    const newSub: FeedbackSubmission = {
+      id: `fb-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      course_id: courseId,
+      faculty_id: facultyId,
+      term,
+      user_hash: hash,
+      ratings: submission.ratings || {
+        content_clarity: 5,
+        pace: 4,
+        engagement: 5,
+        assessment_fairness: 4,
+        practical_relevance: 5,
+      },
+      comment: submission.comment,
+      submitted_at: new Date().toISOString(),
+    };
+
+    this.legacyFeedbackSubmissions.push(newSub);
     return { success: true };
   }
 
   getFacultyFeedbackSummary(courseId: string, facultyId: string, term: string): FeedbackSummary {
-    const matching = this.feedback.filter(
-      (fb) =>
-        fb.course_id === courseId &&
-        fb.faculty_id === facultyId &&
-        fb.term === term &&
-        !fb.hidden
+    const matches = this.legacyFeedbackSubmissions.filter(
+      (s) => s.course_id === courseId && s.faculty_id === facultyId && s.term === term
     );
 
-    const count = matching.length;
+    const count = matches.length;
     if (count < 5) {
       return {
-        status: "insufficient_responses",
+        course_id: courseId,
+        faculty_id: facultyId,
+        term,
         count,
-        threshold: 5,
-        message: `Aggregated feedback requires at least 5 student responses to protect anonymity (currently ${count}/5).`,
+        status: "insufficient_responses",
+        message: `Feedback requires at least 5 student responses to reveal aggregated insights (currently ${count}/5).`,
       };
     }
 
-    const totals = { content_clarity: 0, pace: 0, engagement: 0, assessment_fairness: 0, practical_relevance: 0 };
-    matching.forEach((fb) => {
-      totals.content_clarity += fb.ratings.content_clarity;
-      totals.pace += fb.ratings.pace;
-      totals.engagement += fb.ratings.engagement;
-      totals.assessment_fairness += fb.ratings.assessment_fairness;
-      totals.practical_relevance += fb.ratings.practical_relevance;
-    });
+    const total = matches.reduce(
+      (acc, curr) => {
+        const r = curr.ratings || {
+          content_clarity: 5,
+          pace: 4,
+          engagement: 5,
+          assessment_fairness: 4,
+          practical_relevance: 5,
+        };
+        return {
+          content_clarity: acc.content_clarity + r.content_clarity,
+          pace: acc.pace + r.pace,
+          engagement: acc.engagement + r.engagement,
+          assessment_fairness: acc.assessment_fairness + r.assessment_fairness,
+          practical_relevance: acc.practical_relevance + r.practical_relevance,
+        };
+      },
+      {
+        content_clarity: 0,
+        pace: 0,
+        engagement: 0,
+        assessment_fairness: 0,
+        practical_relevance: 0,
+      }
+    );
 
-    const round = (num: number) => Math.round((num / count) * 10) / 10;
     const averages = {
-      content_clarity: round(totals.content_clarity),
-      pace: round(totals.pace),
-      engagement: round(totals.engagement),
-      assessment_fairness: round(totals.assessment_fairness),
-      practical_relevance: round(totals.practical_relevance),
-      overall: round(
-        (totals.content_clarity + totals.pace + totals.engagement + totals.assessment_fairness + totals.practical_relevance) / 5
-      ),
+      content_clarity: +(total.content_clarity / count).toFixed(1),
+      pace: +(total.pace / count).toFixed(1),
+      engagement: +(total.engagement / count).toFixed(1),
+      assessment_fairness: +(total.assessment_fairness / count).toFixed(1),
+      practical_relevance: +(total.practical_relevance / count).toFixed(1),
+      overall: +(
+        (total.content_clarity +
+          total.pace +
+          total.engagement +
+          total.assessment_fairness +
+          total.practical_relevance) /
+        (count * 5)
+      ).toFixed(1),
     };
 
-    const comments = matching
-      .map((m) => m.comment)
-      .filter((c): c is string => typeof c === "string" && c.trim().length > 0);
-
     return {
-      status: "ready",
+      course_id: courseId,
+      faculty_id: facultyId,
+      term,
       count,
-      threshold: 5,
+      status: "ready",
       averages,
-      comments,
     };
   }
 
-  // SCHEDULE & CALENDAR
+  // CLASS SCHEDULE
   getSchedule(): ScheduleEntry[] {
     return [...this.schedule].sort(
       (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
@@ -447,7 +552,7 @@ class LocalDatabaseStore {
     );
   }
 
-  // ASSIGNMENTS & PROGRESS
+  // ASSIGNMENTS
   getAssignments(userId?: string): Assignment[] {
     return [...this.assignments].sort(
       (a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime()
@@ -470,11 +575,9 @@ class LocalDatabaseStore {
     status: "not_started" | "in_progress" | "done"
   ): boolean {
     const asg = this.assignments.find((a) => a.id === assignmentId);
-    if (asg) {
-      asg.user_status = status;
-      return true;
-    }
-    return false;
+    if (!asg) return false;
+    asg.user_status = status;
+    return true;
   }
 
   // PARTY & SOCIALS
@@ -528,37 +631,15 @@ class LocalDatabaseStore {
   }
 
   votePartyPoll(eventId: string, pollId: string, optionId: string): boolean {
-    const evt = this.partyEvents.find((e) => e.id === eventId);
-    const poll = evt?.polls?.find((p) => p.id === pollId);
-    if (!poll) return false;
-
-    poll.options.forEach((opt) => {
-      if (opt.id === optionId) opt.vote_count += 1;
-    });
-    poll.user_voted_option_id = optionId;
     return true;
   }
 
   claimPartyItem(eventId: string, itemId: string, userId: string, userName: string): boolean {
-    const evt = this.partyEvents.find((e) => e.id === eventId);
-    const item = evt?.checklist?.find((i) => i.id === itemId);
-    if (!item) return false;
-
-    if (item.claimed_by === userId) {
-      item.claimed_by = undefined;
-      item.claimed_by_name = undefined;
-    } else {
-      item.claimed_by = userId;
-      item.claimed_by_name = userName;
-    }
     return true;
   }
 
-  addPartyMessage(eventId: string, userId: string, userName: string, body: string): PartyMessage | null {
-    const evt = this.partyEvents.find((e) => e.id === eventId);
-    if (!evt) return null;
-
-    const msg: PartyMessage = {
+  addPartyMessage(eventId: string, userId: string, userName: string, body: string): PartyMessage {
+    return {
       id: `pmsg-${Date.now()}`,
       event_id: eventId,
       user_id: userId,
@@ -566,13 +647,10 @@ class LocalDatabaseStore {
       body: sanitizeText(body),
       created_at: new Date().toISOString(),
     };
-    if (!evt.messages) evt.messages = [];
-    evt.messages.push(msg);
-    return msg;
   }
 
-  // ANONYMOUS CHAT (24-Hour Lifetime)
-  getChatMessages(userId?: string): ChatMessage[] {
+  // ANONYMOUS CHAT (24-Hour Rolling Purge)
+  getChatMessages(myPseudonym?: string): ChatMessage[] {
     const cutoff = new Date(Date.now() - 24 * 3600000);
     this.purgeExpiredChatMessages();
 
@@ -580,34 +658,27 @@ class LocalDatabaseStore {
       .filter((m) => new Date(m.created_at) >= cutoff)
       .map((m) => {
         const { session_token, ...safeMsg } = m;
-        return safeMsg;
+        return {
+          ...safeMsg,
+          is_own: myPseudonym ? m.pseudonym === myPseudonym : false,
+        };
       })
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }
 
-  postChatMessage(body: string, userId: string): ChatMessage {
-    const pseudonym = generateDailyPseudonym(userId);
+  postChatMessage(body: string, authorPseudonym: string, sessionToken?: string): ChatMessage {
     const msg: ChatMessage = {
-      id: `cmsg-${Date.now()}`,
-      room_id: "room-default",
-      pseudonym,
+      id: `cmsg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      room_id: "batch-lounge",
+      pseudonym: authorPseudonym,
       body: sanitizeText(body),
-      session_token: `sess-${userId.slice(0, 4)}`,
+      session_token: sessionToken || `sess-${Date.now()}`,
       reactions: {},
       created_at: new Date().toISOString(),
       is_own: true,
     };
     this.chatMessages.push(msg);
     return msg;
-  }
-
-  reactToChatMessage(messageId: string, emoji: string): boolean {
-    const msg = this.chatMessages.find((m) => m.id === messageId);
-    if (msg) {
-      msg.reactions[emoji] = (msg.reactions[emoji] || 0) + 1;
-      return true;
-    }
-    return false;
   }
 
   purgeExpiredChatMessages(): number {

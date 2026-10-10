@@ -93,7 +93,7 @@ export function CreateLinkModal({
           <input
             type="text"
             required
-            placeholder="e.g. Term 4 Case Studies Drive / Attendance Sheet"
+            placeholder="e.g. Course Case Studies Drive / Attendance Sheet"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600"

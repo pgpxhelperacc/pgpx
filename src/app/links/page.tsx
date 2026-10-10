@@ -223,7 +223,7 @@ export default function LinksPage() {
             <input
               type="text"
               required
-              placeholder="e.g. Term 4 Casepack Download Portal"
+              placeholder="e.g. Course Casepack Portal / Drive"
               value={formTitle}
               onChange={(e) => setFormTitle(e.target.value)}
               className="w-full px-3.5 py-2 rounded-lg bg-zinc-900 border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"

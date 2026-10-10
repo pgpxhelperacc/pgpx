@@ -244,7 +244,7 @@ export default function AdminPage() {
               <input
                 type="text"
                 required
-                placeholder="Roll No (e.g. PGPX06099)"
+                placeholder="Roll No (e.g. PGPX-001)"
                 value={newRoll}
                 onChange={(e) => setNewRoll(e.target.value)}
                 className="px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-xs text-white focus:outline-none"
@@ -297,16 +297,16 @@ export default function AdminPage() {
             <div className="p-3 rounded-xl bg-zinc-900/60 border border-white/5 text-xs flex items-center justify-between">
               <div>
                 <span className="font-mono text-blue-400 font-semibold">[VERIFIED_DATE]</span>{" "}
-                <span className="text-zinc-300">Ananya Sharma confirmed FIN-602 Valuation Case due date</span>
+                <span className="text-zinc-300">Class Representative verified assignment submission timeline</span>
               </div>
-              <span className="text-zinc-500 font-mono text-[11px]">Today</span>
+              <span className="text-zinc-500 font-mono text-[11px]">Recent</span>
             </div>
             <div className="p-3 rounded-xl bg-zinc-900/60 border border-white/5 text-xs flex items-center justify-between">
               <div>
-                <span className="font-mono text-amber-400 font-semibold">[RESCHEDULE]</span>{" "}
-                <span className="text-zinc-300">Class shifted from Room 104 to LT-1</span>
+                <span className="font-mono text-emerald-400 font-semibold">[INITIALIZED]</span>{" "}
+                <span className="text-zinc-300">Fresh portal database initialized for PGPx batch</span>
               </div>
-              <span className="text-zinc-500 font-mono text-[11px]">Yesterday</span>
+              <span className="text-zinc-500 font-mono text-[11px]">System</span>
             </div>
           </div>
         </div>

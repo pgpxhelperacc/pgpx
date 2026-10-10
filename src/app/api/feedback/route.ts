@@ -1,94 +1,80 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import crypto from "crypto";
 import { db } from "@/lib/db";
-import { containsProfanityOrSpam } from "@/lib/security";
+import { containsProfanityOrSpam, generateDailyPseudonym } from "@/lib/security";
 
-function getCurrentUser() {
+function getAnonToken(): string {
   const cookieStore = cookies();
-  const userIdCookie = cookieStore.get("pgpx_user_id");
-  return (userIdCookie ? db.getUserById(userIdCookie.value) : null) || db.getUserById("u-rahul")!;
+  const tokenCookie = cookieStore.get("pgpx_anon_token");
+  if (tokenCookie?.value) return tokenCookie.value;
+  return `anon_${crypto.randomBytes(8).toString("hex")}`;
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const courseId = searchParams.get("courseId");
-  const facultyId = searchParams.get("facultyId");
-  const term = searchParams.get("term") || "Term 4";
-
-  if (!courseId || !facultyId) {
-    return NextResponse.json(
-      { error: "courseId and facultyId are required" },
-      { status: 400 }
-    );
-  }
-
-  // Returns aggregated summary; enforces privacy threshold (< 5 responses)
-  const summary = db.getFacultyFeedbackSummary(courseId, facultyId, term);
-  return NextResponse.json({ summary });
+  const anonToken = getAnonToken();
+  const threads = db.getFeedbackThreads(anonToken);
+  return NextResponse.json({ threads });
 }
 
 export async function POST(request: Request) {
   try {
-    const user = getCurrentUser();
+    const anonToken = getAnonToken();
+    const pseudonym = generateDailyPseudonym(anonToken);
     const body = await request.json();
-    const { course_id, faculty_id, term, ratings, comment } = body;
+    const { action } = body;
 
-    if (!course_id || !faculty_id || !term || !ratings) {
+    // 1. Upvote / Downvote a thread
+    if (action === "vote") {
+      const { thread_id, direction } = body;
+      if (!thread_id || (direction !== "up" && direction !== "down")) {
+        return NextResponse.json({ error: "thread_id and valid direction ('up' | 'down') required" }, { status: 400 });
+      }
+      const success = db.voteFeedbackThread(thread_id, anonToken, direction);
+      return NextResponse.json({ success });
+    }
+
+    // 2. Comment on a thread
+    if (action === "comment") {
+      const { thread_id, comment } = body;
+      if (!thread_id || !comment || typeof comment !== "string" || !comment.trim()) {
+        return NextResponse.json({ error: "thread_id and comment text are required" }, { status: 400 });
+      }
+      if (containsProfanityOrSpam(comment)) {
+        return NextResponse.json({ error: "Comment flagged for inappropriate language." }, { status: 422 });
+      }
+      const newComment = db.addFeedbackComment(thread_id, pseudonym, comment);
+      return NextResponse.json({ success: true, comment: newComment });
+    }
+
+    // 3. Create a new feedback thread
+    const { subject_name, faculty_name, title, review, rating } = body;
+    if (!subject_name || !faculty_name || !review) {
       return NextResponse.json(
-        { error: "course_id, faculty_id, term and ratings are required" },
+        { error: "Subject Name, Faculty Name, and Review text are required" },
         { status: 400 }
       );
     }
 
-    // Check ratings boundaries (1 to 5)
-    const requiredKeys = [
-      "content_clarity",
-      "pace",
-      "engagement",
-      "assessment_fairness",
-      "practical_relevance",
-    ] as const;
-
-    for (const key of requiredKeys) {
-      const val = Number(ratings[key]);
-      if (isNaN(val) || val < 1 || val > 5) {
-        return NextResponse.json(
-          { error: `Rating for ${key} must be an integer between 1 and 5` },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Profanity / abuse filter
-    if (comment && containsProfanityOrSpam(comment)) {
+    if (containsProfanityOrSpam(review) || (title && containsProfanityOrSpam(title))) {
       return NextResponse.json(
-        { error: "Comment contains prohibited abusive content. Please maintain professional decorum." },
+        { error: "Review flagged for inappropriate language. Please keep discourse constructive." },
         { status: 422 }
       );
     }
 
-    const result = db.submitFeedback(
+    const newThread = db.createFeedbackThread(
       {
-        course_id,
-        faculty_id,
-        term,
-        ratings,
-        comment,
+        subject_name,
+        faculty_name,
+        title: title || `${subject_name} with ${faculty_name}`,
+        review,
+        rating: rating ? Number(rating) : undefined,
       },
-      user.id
+      pseudonym
     );
 
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 409 });
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Anonymous feedback recorded successfully. Thank you for your feedback!",
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, thread: newThread }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

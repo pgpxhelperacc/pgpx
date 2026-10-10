@@ -43,6 +43,22 @@ export default function AnonymousChatPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleReroll = async () => {
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reroll: true }),
+      });
+      const data = await res.json();
+      if (data.currentUserPseudonym) {
+        setMyPseudonym(data.currentUserPseudonym);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -123,10 +139,17 @@ export default function AnonymousChatPage() {
 
         {/* Current Pseudonym Pill */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <div className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/10 text-xs font-mono text-zinc-300 flex items-center gap-1.5">
+          <div className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/10 text-xs font-mono text-zinc-300 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-zinc-500">Your Pseudonym:</span>
             <span className="text-white font-semibold">{myPseudonym}</span>
+            <button
+              onClick={handleReroll}
+              type="button"
+              className="ml-1 px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-200 transition-colors"
+            >
+              🎲 Re-roll
+            </button>
           </div>
         </div>
       </div>

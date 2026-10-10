@@ -602,21 +602,11 @@ export default function PartyPage() {
           <div className="space-y-2">
             <div className="p-3 rounded-xl bg-zinc-900 border border-white/5 space-y-1">
               <div className="flex items-center justify-between text-zinc-300">
-                <span className="font-semibold text-white">Rahul Verma&apos;s Car</span>
-                <span className="font-mono text-emerald-400">2 Seats Available</span>
+                <span className="font-semibold text-white">Campus Ride Share Pool</span>
+                <span className="font-mono text-emerald-400">Open Coordination</span>
               </div>
               <div className="text-zinc-400">
-                Leaving from Campus Gate 2 at 6:15 PM sharp. Destination: Sector 14.
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-zinc-900 border border-white/5 space-y-1">
-              <div className="flex items-center justify-between text-zinc-300">
-                <span className="font-semibold text-white">Uber XL Pool (Priya P)</span>
-                <span className="font-mono text-amber-400">Splitting Fare 4-ways</span>
-              </div>
-              <div className="text-zinc-400">
-                Booking from Hostel Block B lobby at 6:45 PM.
+                Leaving from Campus Gate 2. Coordinate in the party thread for seat availability.
               </div>
             </div>
           </div>

@@ -111,19 +111,48 @@ export interface FeedbackRatings {
   practical_relevance: number;
 }
 
+export interface FeedbackComment {
+  id: string;
+  author_pseudonym: string;
+  body: string;
+  created_at: string;
+}
+
+export interface FeedbackThread {
+  id: string;
+  subject_name: string;
+  faculty_name: string;
+  title: string;
+  review: string;
+  rating?: number;
+  author_pseudonym: string;
+  upvotes: number;
+  downvotes: number;
+  voted?: "up" | "down" | null;
+  comments: FeedbackComment[];
+  created_at: string;
+}
+
 export interface FeedbackSubmission {
   id?: string;
-  course_id: string;
-  faculty_id: string;
-  term: string;
-  ratings: FeedbackRatings;
+  course_id?: string;
+  faculty_id?: string;
+  subject_name?: string;
+  faculty_name?: string;
+  term?: string;
+  ratings?: FeedbackRatings;
   comment?: string;
+  user_hash?: string;
+  submitted_at?: string;
 }
 
 export interface FeedbackSummary {
   status: "ready" | "insufficient_responses";
   count: number;
-  threshold: number;
+  threshold?: number;
+  course_id?: string;
+  faculty_id?: string;
+  term?: string;
   message?: string;
   averages?: {
     content_clarity: number;
@@ -166,10 +195,12 @@ export interface SemesterCalendarItem {
   id: string;
   term: string;
   label: string;
+  title?: string;
   kind: SemesterKind;
   start_date: string;
   end_date: string;
   notes?: string;
+  description?: string;
 }
 
 export interface Assignment {

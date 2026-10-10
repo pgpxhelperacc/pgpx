@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import {
   Clock,
   FileCheck2,
   Bookmark,
   Sparkles,
-  Plus,
   ExternalLink,
   Search,
   ArrowUpRight,
   Layers,
+  MessageSquare,
+  Send,
+  RefreshCw,
+  Info,
+  Calendar,
 } from "lucide-react";
 import { AddReminderModal } from "@/components/reminders/AddReminderModal";
 import { CreateAssignmentModal } from "@/components/modals/CreateAssignmentModal";
@@ -23,6 +27,7 @@ import {
   ImportantLink,
   PartyEvent,
   UserProfile,
+  ChatMessage,
 } from "@/types";
 
 type ItemType = "reminder" | "assignment" | "link" | "party";
@@ -38,9 +43,6 @@ interface UnifiedItem {
   url?: string;
   creatorName?: string;
   rawDate?: string;
-  venue?: string;
-  budget?: number;
-  weightage?: number;
 }
 
 export default function DashboardPage() {
@@ -51,6 +53,14 @@ export default function DashboardPage() {
   const [partyEvents, setPartyEvents] = useState<PartyEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Chat State (Hero feature)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [myPseudonym, setMyPseudonym] = useState("Silent Member");
+  const [chatInput, setChatInput] = useState("");
+  const [sendingChat, setSendingChat] = useState(false);
+  const [rerolling, setRerolling] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   // Modals
   const [openReminderModal, setOpenReminderModal] = useState(false);
   const [openAssignmentModal, setOpenAssignmentModal] = useState(false);
@@ -58,7 +68,7 @@ export default function DashboardPage() {
   const [openPartyModal, setOpenPartyModal] = useState(false);
 
   // Filter & Search
-  const [activeTab, setActiveTab] = useState<"all" | "reminders" | "assignments" | "links" | "party">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "reminders" | "assignments" | "links">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const loadData = async () => {
@@ -91,8 +101,66 @@ export default function DashboardPage() {
     }
   };
 
+  const loadChat = async () => {
+    try {
+      const res = await fetch("/api/chat");
+      const data = await res.json();
+      if (data.messages) setChatMessages(data.messages);
+      if (data.currentUserPseudonym) setMyPseudonym(data.currentUserPseudonym);
+    } catch (err) {
+      console.error("Failed to load chat", err);
+    }
+  };
+
+  const handleReroll = async () => {
+    setRerolling(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reroll: true }),
+      });
+      const data = await res.json();
+      if (data.currentUserPseudonym) {
+        setMyPseudonym(data.currentUserPseudonym);
+      }
+    } catch (err) {
+      console.error("Failed to re-roll pseudonym", err);
+    } finally {
+      setRerolling(false);
+    }
+  };
+
+  const handleSendChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || sendingChat) return;
+
+    const text = chatInput.trim();
+    setSendingChat(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      if (res.ok) {
+        setChatInput("");
+        await loadChat();
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    } catch (err) {
+      console.error("Failed to send chat", err);
+    } finally {
+      setSendingChat(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadChat();
+
+    const interval = setInterval(loadChat, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   // Format Unified List
@@ -128,7 +196,6 @@ export default function DashboardPage() {
       badge: `${a.weightage}% Weight`,
       category: "Assignment",
       url: a.submission_url,
-      weightage: a.weightage,
       rawDate: a.due_at,
     })),
     ...links.map((l) => ({
@@ -154,335 +221,378 @@ export default function DashboardPage() {
       }),
       badge: p.category,
       category: "Social Plan",
-      venue: p.venue,
-      budget: p.budget_per_head,
       rawDate: p.starts_at,
     })),
   ];
 
-  // Filter items by tab and search
   const filteredItems = unifiedItems.filter((item) => {
     if (activeTab === "reminders" && item.type !== "reminder") return false;
     if (activeTab === "assignments" && item.type !== "assignment") return false;
     if (activeTab === "links" && item.type !== "link") return false;
-    if (activeTab === "party" && item.type !== "party") return false;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchTitle = item.title.toLowerCase().includes(q);
-      const matchSub = item.subtitle?.toLowerCase().includes(q);
-      const matchBadge = item.badge?.toLowerCase().includes(q);
-      return matchTitle || matchSub || matchBadge;
+      return (
+        item.title.toLowerCase().includes(q) ||
+        item.subtitle?.toLowerCase().includes(q) ||
+        item.badge?.toLowerCase().includes(q)
+      );
     }
     return true;
   });
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in duration-100">
-      {/* Top Header Breadcrumb & Context */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#1c1c1f] gap-3">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2 text-[11px] font-mono text-[#71717a]">
-            <span>iim-rohtak</span>
-            <span>/</span>
-            <span className="text-[#ededed]">pgpx-portal</span>
-            <span>/</span>
-            <span>{user?.batch || "PGPx06"}</span>
+    <div className="space-y-5 max-w-7xl mx-auto animate-in fade-in duration-150">
+      {/* Top Banner: Batch-Wide Collaboration Identity */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#0e0e12] via-[#09090b] to-[#0e0e12] border border-white/[0.08] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[11px] font-mono tracking-wider uppercase text-zinc-400">
+              PGPx Batch Portal
+            </span>
+            <span className="text-zinc-600">•</span>
+            <span className="text-[11px] font-mono text-zinc-500">IIM Rohtak</span>
           </div>
-          <h1 className="text-base sm:text-lg font-medium text-white tracking-tight">
-            Overview
+          <h1 className="text-lg sm:text-xl font-semibold text-white tracking-tight">
+            Collaborative Batch Hub
           </h1>
-          <p className="text-xs text-[#71717a]">
-            Unified student directory for deadlines, assignments, links, and batch events.
+          <p className="text-xs text-zinc-400 max-w-2xl leading-relaxed">
+            A shared portal for the entire batch. Everyone helps everyone — post updates, contribute deadlines, share course drives, and connect anonymously.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#121214] border border-[#222226] text-[#8e8e93]">
-            {unifiedItems.length} records
-          </span>
-        </div>
-      </div>
-
-      {/* Mobile Quick Navigation Strip */}
-      <div className="md:hidden flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#1c1c1f]">
-        {[
-          { label: "Schedule", href: "/schedule" },
-          { label: "Dates", href: "/reminders" },
-          { label: "Assignments", href: "/assignments" },
-          { label: "Links", href: "/links" },
-          { label: "Feedback", href: "/feedback" },
-          { label: "Socials", href: "/party" },
-          { label: "Admin", href: "/admin" },
-        ].map((link) => (
+        {/* Global Schedule Notice Pill */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-xs">
           <Link
-            key={link.href}
-            href={link.href}
-            className="px-2 py-1 rounded bg-[#121214] border border-[#222226] text-[11px] text-[#a1a1aa] whitespace-nowrap"
+            href="/schedule"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-white/[0.08] text-zinc-300 hover:text-white transition-colors"
           >
-            {link.label}
+            <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Class Timetable:</span>
+            <span className="text-zinc-500 font-mono text-[11px]">To be updated soon</span>
           </Link>
-        ))}
+        </div>
       </div>
 
-      {/* TOP: FOUR ACTION BLOCKS (Supabase & Vercel Style) */}
-      <section className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase font-mono tracking-wider text-[#636366]">
-            Quick Create
-          </span>
-        </div>
+      {/* MAIN TWO-COLUMN SPLIT: ANONYMOUS CHAT IS THE MAJOR SPACE (Col-span-7/8) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* ============================================================ */}
+        {/* MAJOR SPACE (Left 7 Columns): ANONYMOUS BATCH CHAT */}
+        {/* ============================================================ */}
+        <div className="lg:col-span-7 flex flex-col rounded-2xl bg-[#09090b] border border-white/[0.08] shadow-2xl h-[680px] overflow-hidden">
+          {/* Chat Header */}
+          <div className="p-3.5 sm:p-4 border-b border-white/[0.06] bg-[#0c0c0e] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-white flex items-center gap-2">
+                  <span>Anonymous Batch Lounge</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
+                    24h Purge
+                  </span>
+                </div>
+                <div className="text-[11px] text-zinc-500">
+                  Ephemeral, text-only lounge. Zero logs stored permanently.
+                </div>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          {/* Block 1: Create New Reminder */}
-          <button
-            onClick={() => setOpenReminderModal(true)}
-            className="group p-3 rounded-lg bg-[#0c0c0e] hover:bg-[#121214] border border-[#1e1e22] hover:border-[#323238] text-left transition-colors flex flex-col justify-between h-24"
-          >
-            <div className="flex items-center justify-between w-full">
-              <div className="w-6 h-6 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center text-white">
-                <Clock className="w-3.5 h-3.5" />
-              </div>
-              <ArrowUpRight className="w-3.5 h-3.5 text-[#52525b] group-hover:text-white transition-colors" />
-            </div>
-            <div>
-              <div className="text-xs font-medium text-white">Create New Reminder</div>
-              <div className="text-[11px] text-[#71717a] mt-0.5 line-clamp-1">
-                Quiz, exam or submission deadline
-              </div>
-            </div>
-          </button>
-
-          {/* Block 2: Create New Assignment */}
-          <button
-            onClick={() => setOpenAssignmentModal(true)}
-            className="group p-3 rounded-lg bg-[#0c0c0e] hover:bg-[#121214] border border-[#1e1e22] hover:border-[#323238] text-left transition-colors flex flex-col justify-between h-24"
-          >
-            <div className="flex items-center justify-between w-full">
-              <div className="w-6 h-6 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center text-white">
-                <FileCheck2 className="w-3.5 h-3.5" />
-              </div>
-              <ArrowUpRight className="w-3.5 h-3.5 text-[#52525b] group-hover:text-white transition-colors" />
-            </div>
-            <div>
-              <div className="text-xs font-medium text-white">Create New Assignment</div>
-              <div className="text-[11px] text-[#71717a] mt-0.5 line-clamp-1">
-                Deliverable, weightage & portal link
-              </div>
-            </div>
-          </button>
-
-          {/* Block 3: Create New Link */}
-          <button
-            onClick={() => setOpenLinkModal(true)}
-            className="group p-3 rounded-lg bg-[#0c0c0e] hover:bg-[#121214] border border-[#1e1e22] hover:border-[#323238] text-left transition-colors flex flex-col justify-between h-24"
-          >
-            <div className="flex items-center justify-between w-full">
-              <div className="w-6 h-6 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center text-white">
-                <Bookmark className="w-3.5 h-3.5" />
-              </div>
-              <ArrowUpRight className="w-3.5 h-3.5 text-[#52525b] group-hover:text-white transition-colors" />
-            </div>
-            <div>
-              <div className="text-xs font-medium text-white">Create New Link</div>
-              <div className="text-[11px] text-[#71717a] mt-0.5 line-clamp-1">
-                Course drive, portal or resource
-              </div>
-            </div>
-          </button>
-
-          {/* Block 4: Create New Party / Social */}
-          <button
-            onClick={() => setOpenPartyModal(true)}
-            className="group p-3 rounded-lg bg-[#0c0c0e] hover:bg-[#121214] border border-[#1e1e22] hover:border-[#323238] text-left transition-colors flex flex-col justify-between h-24"
-          >
-            <div className="flex items-center justify-between w-full">
-              <div className="w-6 h-6 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center text-white">
-                <Sparkles className="w-3.5 h-3.5" />
-              </div>
-              <ArrowUpRight className="w-3.5 h-3.5 text-[#52525b] group-hover:text-white transition-colors" />
-            </div>
-            <div>
-              <div className="text-xs font-medium text-white">Create New Party Chat</div>
-              <div className="text-[11px] text-[#71717a] mt-0.5 line-clamp-1">
-                Batch dinner, outing or mixer
-              </div>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      {/* BELOW: SUPABASE-STYLE DATA TABLE / CREATED ITEMS STREAM */}
-      <section className="space-y-3 pt-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          {/* Tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto">
-            {[
-              { id: "all", label: "All", count: unifiedItems.length },
-              { id: "reminders", label: "Reminders", count: reminders.length },
-              { id: "assignments", label: "Assignments", count: assignments.length },
-              { id: "links", label: "Links", count: links.length },
-              { id: "party", label: "Social Plans", count: partyEvents.length },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1.5 ${
-                  activeTab === tab.id
-                    ? "bg-[#18181b] text-white font-medium border border-[#27272a]"
-                    : "text-[#71717a] hover:text-[#ededed] hover:bg-[#121214]"
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className="text-[10px] font-mono text-[#52525b]">
-                  {tab.count}
+            {/* Dynamic Pseudonym Pill with Re-roll */}
+            <div className="flex items-center gap-2 bg-zinc-950/80 border border-white/[0.08] px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-inner">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <div className="text-[11px] font-mono flex items-center gap-1.5">
+                <span className="text-zinc-500">Posting as:</span>
+                <span className="text-white font-semibold truncate max-w-[130px]">
+                  {myPseudonym}
                 </span>
+              </div>
+              <button
+                onClick={handleReroll}
+                disabled={rerolling}
+                title="Randomize your handle"
+                type="button"
+                className="ml-1 p-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${rerolling ? "animate-spin" : ""}`} />
               </button>
-            ))}
+            </div>
           </div>
 
-          {/* Search Box */}
-          <div className="relative w-full sm:w-56">
-            <Search className="w-3.5 h-3.5 text-[#52525b] absolute left-2.5 top-1/2 -translate-y-1/2" />
+          {/* Ephemeral Info Sub-bar */}
+          <div className="px-4 py-1.5 bg-[#0e0e11] border-b border-white/[0.04] text-[10px] font-mono text-zinc-500 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Info className="w-3 h-3 text-zinc-500" />
+              <span>Pseudonyms rotate daily or via re-roll • Keep interactions constructive</span>
+            </span>
+            <span className="text-zinc-600">@iimrohtak.ac.in</span>
+          </div>
+
+          {/* Chat Messages Stream */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#070709]">
+            {chatMessages.length > 0 ? (
+              chatMessages.map((msg) => {
+                const isOwn = msg.pseudonym === myPseudonym;
+                const timeStr = new Date(msg.created_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${isOwn ? "items-end" : "items-start"} space-y-1`}
+                  >
+                    <div className="flex items-center gap-2 px-1 text-[10px] font-mono text-zinc-500">
+                      <span className={isOwn ? "text-zinc-300 font-semibold" : "text-zinc-400"}>
+                        {msg.pseudonym}
+                      </span>
+                      <span>•</span>
+                      <span>{timeStr}</span>
+                    </div>
+
+                    <div
+                      className={`p-3 rounded-2xl text-xs sm:text-[13px] max-w-[85%] leading-relaxed transition-all ${
+                        isOwn
+                          ? "bg-white text-black font-normal rounded-tr-sm shadow-md"
+                          : "bg-[#121215] text-zinc-200 border border-white/[0.06] rounded-tl-sm hover:border-white/[0.12]"
+                      }`}
+                    >
+                      {msg.body}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 text-zinc-500 space-y-2">
+                <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-medium text-zinc-300">
+                  Welcome to the PGPx Anonymous Lounge
+                </p>
+                <p className="text-[11px] text-zinc-500 max-w-xs leading-relaxed">
+                  No names, no roll numbers. Post anything anonymously to help, ask, or banter with the batch.
+                </p>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Chat Input Bar */}
+          <form
+            onSubmit={handleSendChat}
+            className="p-3 border-t border-white/[0.06] bg-[#0c0c0e] flex items-center gap-2 shrink-0"
+          >
             <input
               type="text"
-              placeholder="Search records..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#0c0c0e] border border-[#1e1e22] pl-8 pr-2.5 py-1 rounded text-xs text-white placeholder-[#52525b] focus:outline-none focus:border-[#38383f]"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder={`Text anonymously as ${myPseudonym}...`}
+              maxLength={1000}
+              className="flex-1 bg-[#141418] border border-white/[0.08] px-3.5 py-2 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
             />
-          </div>
+            <button
+              type="submit"
+              disabled={sendingChat || !chatInput.trim()}
+              className="px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 font-medium text-xs flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+            >
+              <span>Send</span>
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          </form>
         </div>
 
-        {/* Content Table / Stream */}
-        {loading ? (
-          <div className="p-10 text-center text-xs text-[#52525b] font-mono">
-            Loading portal items...
-          </div>
-        ) : filteredItems.length === 0 ? (
-          /* Clean Empty State */
-          <div className="p-10 rounded-lg border border-dashed border-[#1e1e22] bg-[#0c0c0e]/50 text-center space-y-3">
-            <div className="w-8 h-8 rounded-full bg-[#141416] border border-[#242428] flex items-center justify-center mx-auto text-[#71717a]">
-              <Layers className="w-4 h-4" />
+        {/* ============================================================ */}
+        {/* COMPANION SPACE (Right 5 Columns): 4 QUICK BLOCKS + STREAM */}
+        {/* ============================================================ */}
+        <div className="lg:col-span-5 space-y-4">
+          {/* THE 4 ACTION BLOCKS (2x2 Grid) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">
+                Quick Actions
+              </span>
+              <span className="text-[10px] font-mono text-zinc-600">
+                Contributed by Batch
+              </span>
             </div>
-            <div className="space-y-0.5 max-w-sm mx-auto">
-              <h3 className="text-xs font-medium text-white">No items created yet</h3>
-              <p className="text-[11px] text-[#71717a] leading-relaxed">
-                This portal is completely fresh. Click any of the four blocks above to publish a reminder, assignment, resource link, or batch event.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {/* Block 1: Create New Reminder */}
               <button
                 onClick={() => setOpenReminderModal(true)}
-                className="px-2.5 py-1 rounded bg-[#121214] hover:bg-[#18181b] border border-[#222226] text-xs text-[#a1a1aa] hover:text-white transition-colors"
+                className="group p-3 rounded-xl bg-[#0c0c0e] hover:bg-[#121215] border border-white/[0.08] hover:border-white/20 text-left transition-all flex flex-col justify-between h-24 shadow-sm"
               >
-                + New Reminder
+                <div className="flex items-center justify-between w-full">
+                  <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white">
+                    <Clock className="w-3.5 h-3.5" />
+                  </div>
+                  <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-white">Add Important Date</div>
+                  <div className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">
+                    Quiz, exam or submission
+                  </div>
+                </div>
               </button>
+
+              {/* Block 2: Create New Assignment */}
               <button
                 onClick={() => setOpenAssignmentModal(true)}
-                className="px-2.5 py-1 rounded bg-[#121214] hover:bg-[#18181b] border border-[#222226] text-xs text-[#a1a1aa] hover:text-white transition-colors"
+                className="group p-3 rounded-xl bg-[#0c0c0e] hover:bg-[#121215] border border-white/[0.08] hover:border-white/20 text-left transition-all flex flex-col justify-between h-24 shadow-sm"
               >
-                + New Assignment
+                <div className="flex items-center justify-between w-full">
+                  <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white">
+                    <FileCheck2 className="w-3.5 h-3.5" />
+                  </div>
+                  <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-white">Add Assignment</div>
+                  <div className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">
+                    Deliverable & weightage
+                  </div>
+                </div>
               </button>
+
+              {/* Block 3: Create New Link */}
               <button
                 onClick={() => setOpenLinkModal(true)}
-                className="px-2.5 py-1 rounded bg-[#121214] hover:bg-[#18181b] border border-[#222226] text-xs text-[#a1a1aa] hover:text-white transition-colors"
+                className="group p-3 rounded-xl bg-[#0c0c0e] hover:bg-[#121215] border border-white/[0.08] hover:border-white/20 text-left transition-all flex flex-col justify-between h-24 shadow-sm"
               >
-                + New Link
+                <div className="flex items-center justify-between w-full">
+                  <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white">
+                    <Bookmark className="w-3.5 h-3.5" />
+                  </div>
+                  <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-white">Add Important Link</div>
+                  <div className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">
+                    Course drive or portal
+                  </div>
+                </div>
               </button>
+
+              {/* Block 4: Create New Party / Social */}
               <button
                 onClick={() => setOpenPartyModal(true)}
-                className="px-2.5 py-1 rounded bg-[#121214] hover:bg-[#18181b] border border-[#222226] text-xs text-[#a1a1aa] hover:text-white transition-colors"
+                className="group p-3 rounded-xl bg-[#0c0c0e] hover:bg-[#121215] border border-white/[0.08] hover:border-white/20 text-left transition-all flex flex-col justify-between h-24 shadow-sm"
               >
-                + New Party
+                <div className="flex items-center justify-between w-full">
+                  <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-white">Create Party Chat</div>
+                  <div className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">
+                    Batch dinner or mixer
+                  </div>
+                </div>
               </button>
             </div>
           </div>
-        ) : (
-          /* Sleek Table Container */
-          <div className="border border-[#1e1e22] rounded-lg bg-[#0c0c0e] divide-y divide-[#18181b] overflow-hidden">
-            <div className="px-3.5 py-1.5 bg-[#09090b] text-[10px] font-mono uppercase tracking-wider text-[#52525b] flex items-center justify-between">
-              <span>Title & Details</span>
-              <span className="hidden sm:inline">Timeline / Action</span>
+
+          {/* BATCH CONTRIBUTIONS STREAM */}
+          <div className="rounded-2xl bg-[#09090b] border border-white/[0.08] p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-white">Batch Updates Feed</span>
+              <span className="text-[10px] font-mono text-zinc-500">
+                {unifiedItems.length} published
+              </span>
             </div>
 
-            {filteredItems.map((item) => (
-              <div
-                key={`${item.type}-${item.id}`}
-                className="px-3.5 py-2.5 hover:bg-[#111114] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
-              >
-                <div className="space-y-0.5 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[#161619] text-[#71717a] border border-[#242428] uppercase">
-                      {item.type}
-                    </span>
-                    {item.badge && (
-                      <span className="text-[10px] font-mono text-[#71717a]">
-                        {item.badge}
-                      </span>
-                    )}
-                    {item.dateStr && (
-                      <span className="text-[10px] font-mono text-[#52525b]">
-                        • {item.dateStr}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-xs font-medium text-white truncate">
-                    {item.title}
-                  </h3>
-                  {item.subtitle && (
-                    <p className="text-[11px] text-[#71717a] line-clamp-1">
-                      {item.subtitle}
-                    </p>
-                  )}
+            {/* Filter Tabs & Search */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1">
+              {[
+                { id: "all", label: "All" },
+                { id: "reminders", label: "Dates" },
+                { id: "assignments", label: "Assignments" },
+                { id: "links", label: "Links" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-2.5 py-1 rounded-lg text-xs transition-colors whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "bg-white/10 text-white font-medium"
+                      : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Stream List */}
+            {loading ? (
+              <div className="py-12 text-center text-xs text-zinc-500 font-mono">
+                Loading batch updates...
+              </div>
+            ) : filteredItems.length === 0 ? (
+              /* Clean Honest Empty State */
+              <div className="py-8 px-4 rounded-xl border border-dashed border-white/[0.08] bg-[#0c0c0e]/50 text-center space-y-2">
+                <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-zinc-400">
+                  <Layers className="w-3.5 h-3.5" />
                 </div>
-
-                {/* Item Actions */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {item.url && (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#141416] hover:bg-[#1a1a1e] border border-[#222226] text-[#ededed] text-xs transition-colors"
-                    >
-                      <span>Open</span>
-                      <ExternalLink className="w-3 h-3 text-[#71717a]" />
-                    </a>
-                  )}
-
-                  {item.type === "reminder" && (
-                    <Link
-                      href="/reminders"
-                      className="px-2 py-0.5 rounded bg-[#141416] hover:bg-[#1a1a1e] border border-[#222226] text-[#ededed] text-xs transition-colors"
-                    >
-                      Details
-                    </Link>
-                  )}
-
-                  {item.type === "assignment" && (
-                    <Link
-                      href="/assignments"
-                      className="px-2 py-0.5 rounded bg-[#141416] hover:bg-[#1a1a1e] border border-[#222226] text-[#ededed] text-xs transition-colors"
-                    >
-                      View Deliverable
-                    </Link>
-                  )}
-
-                  {item.type === "party" && (
-                    <Link
-                      href="/party"
-                      className="px-2 py-0.5 rounded bg-[#141416] hover:bg-[#1a1a1e] border border-[#222226] text-[#ededed] text-xs transition-colors"
-                    >
-                      RSVP / Join
-                    </Link>
-                  )}
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium text-white">To be updated by the batch</p>
+                  <p className="text-[11px] text-zinc-500 leading-relaxed">
+                    Zero dummy data. As classes start, anyone in the batch can add dates, assignments, or links using the 4 blocks above.
+                  </p>
                 </div>
               </div>
-            ))}
+            ) : (
+              <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                {filteredItems.map((item) => (
+                  <div
+                    key={`${item.type}-${item.id}`}
+                    className="p-3 rounded-xl bg-[#0c0c0e] hover:bg-[#121215] border border-white/[0.06] transition-colors space-y-1"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/5 text-zinc-400 border border-white/10 uppercase">
+                        {item.type}
+                      </span>
+                      {item.dateStr && (
+                        <span className="text-[10px] font-mono text-zinc-500">
+                          {item.dateStr}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs font-medium text-white line-clamp-1">
+                      {item.title}
+                    </div>
+                    {item.subtitle && (
+                      <div className="text-[11px] text-zinc-400 line-clamp-1">
+                        {item.subtitle}
+                      </div>
+                    )}
+                    {item.url && (
+                      <div className="pt-1 flex justify-end">
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white transition-colors"
+                        >
+                          <span>Open link</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </section>
+        </div>
+      </div>
 
       {/* MODALS */}
       <AddReminderModal

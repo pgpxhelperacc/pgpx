@@ -11,7 +11,6 @@ export function isValidInstituteEmail(email: string | null | undefined): boolean
   if (!email || typeof email !== "string") return false;
   const trimmed = email.trim().toLowerCase();
 
-  // Standard RFC-compliant email regex + exact domain matching
   const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
   if (!emailRegex.test(trimmed)) return false;
 
@@ -20,71 +19,76 @@ export function isValidInstituteEmail(email: string | null | undefined): boolean
 
 /**
  * OWASP Rule: XSS Prevention & Input Sanitization
- * Strips script tags, unsafe protocols, and encodes dangerous characters.
  */
 export function sanitizeText(input: string | null | undefined): string {
   if (!input) return "";
   let clean = input.trim();
-  // Strip null bytes
   clean = clean.replace(/\0/g, "");
-  // Remove script tags and embedded JavaScript triggers
   clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
   clean = clean.replace(/javascript:/gi, "");
   clean = clean.replace(/data:text\/html/gi, "");
   clean = clean.replace(/on\w+\s*=/gi, "");
-  // Escape angle brackets
   clean = clean.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return clean;
 }
 
 /**
  * Privacy Guarantee: Cryptographic One-Way Feedback Hash
- * Allows enforcing 1 submission per student per course per term without ever storing the student's ID on the row.
- * The hash cannot be reversed to reveal the student's identity.
  */
 export function computeFeedbackHash(
   userId: string,
-  courseId: string,
-  facultyId: string,
-  term: string
+  subjectName: string,
+  facultyName: string,
+  term: string = ""
 ): string {
-  const payload = `${userId}:${courseId}:${facultyId}:${term}`;
+  const payload = `${userId}:${subjectName.toLowerCase().trim()}:${facultyName.toLowerCase().trim()}:${term.toLowerCase().trim()}`;
   return crypto.createHmac("sha256", PEPPER).update(payload).digest("hex");
 }
 
 /**
- * Privacy Guarantee: Daily Rotating Anonymous Pseudonyms
- * Format: [Adjective] [Animal] [2-digit Number]
- * The pseudonym changes automatically every UTC midnight.
- * Different users receive different pseudonyms on the same day.
+ * Truly Dynamic Anonymous Pseudonyms (Adjective + Animal + Random 2-3 Digit Number)
  */
 const ADJECTIVES = [
   "Silent", "Obsidian", "Quantum", "Cyber", "Midnight", "Solar",
   "Golden", "Astral", "Velvet", "Granite", "Neon", "Lunar",
   "Iron", "Swift", "Brave", "Alpine", "Stormy", "Zenith",
-  "Echo", "Cobalt", "Phantom", "Amber", "Vortex", "Frost"
+  "Echo", "Cobalt", "Phantom", "Amber", "Vortex", "Frost",
+  "Shadow", "Crimson", "Hyper", "Mystic", "Electric", "Onyx",
+  "Silver", "Radiant", "Dynamic", "Titan", "Vivid", "Cosmic",
+  "Nova", "Stealth", "Apex", "Prism", "Aurora", "Blaze",
+  "Sonic", "Arctic", "Ember", "Pulse", "Zen", "Turbo"
 ];
 
 const ANIMALS = [
   "Falcon", "Tiger", "Phoenix", "Leopard", "Wolf", "Bison",
   "Lynx", "Eagle", "Panther", "Hawk", "Otter", "Raven",
   "Fox", "Jaguar", "Stag", "Bear", "Condor", "Cobra",
-  "Osprey", "Cheetah", "Badger", "Puma", "Rhino", "Shark"
+  "Osprey", "Cheetah", "Badger", "Puma", "Rhino", "Shark",
+  "Owl", "Viper", "Griffin", "Mantis", "Orca", "Mustang",
+  "Kraken", "Dragon", "Badger", "Panda", "Gazelle", "Chameleon",
+  "Husky", "Falcon", "Koala", "Heron", "Ibex", "Jaguar"
 ];
 
-export function generateDailyPseudonym(userId: string, dateOverride?: string): string {
-  // Use UTC date YYYY-MM-DD
-  const dateKey = dateOverride || new Date().toISOString().slice(0, 10);
+export function generateDailyPseudonym(uniqueSeed: string, dateOrSalt?: string): string {
+  const isDate = Boolean(dateOrSalt && /^\d{4}-\d{2}-\d{2}$/.test(dateOrSalt));
+  const dateStr = isDate ? dateOrSalt! : new Date().toISOString().slice(0, 10);
+  const salt = !isDate && dateOrSalt ? dateOrSalt : "";
+
   const seed = crypto
     .createHmac("sha256", PEPPER)
-    .update(`${userId}:${dateKey}:chat_pseudonym`)
+    .update(`${uniqueSeed}:${salt}:${dateStr}`)
     .digest("hex");
 
   const num1 = parseInt(seed.substring(0, 4), 16) % ADJECTIVES.length;
   const num2 = parseInt(seed.substring(4, 8), 16) % ANIMALS.length;
-  const num3 = (parseInt(seed.substring(8, 12), 16) % 90) + 10; // 10-99
+  const num3 = (parseInt(seed.substring(8, 12), 16) % 90) + 10; // 10-99 (2 digits)
 
   return `${ADJECTIVES[num1]} ${ANIMALS[num2]} ${num3}`;
+}
+
+export function generateRandomPseudonym(): string {
+  const randomBytes = crypto.randomBytes(6).toString("hex");
+  return generateDailyPseudonym(randomBytes);
 }
 
 /**

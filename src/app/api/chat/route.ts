@@ -1,36 +1,72 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import crypto from "crypto";
 import { db } from "@/lib/db";
 import { containsProfanityOrSpam, generateDailyPseudonym } from "@/lib/security";
 
-function getCurrentUser() {
+function getOrSetAnonToken(): { token: string; isNew: boolean } {
   const cookieStore = cookies();
-  const userIdCookie = cookieStore.get("pgpx_user_id");
-  return (userIdCookie ? db.getUserById(userIdCookie.value) : null) || db.getUserById("u-rahul")!;
+  const existing = cookieStore.get("pgpx_anon_token");
+  if (existing?.value) {
+    return { token: existing.value, isNew: false };
+  }
+  const newToken = `anon_${crypto.randomBytes(8).toString("hex")}`;
+  return { token: newToken, isNew: true };
 }
 
-export async function GET() {
-  const user = getCurrentUser();
-  const messages = db.getChatMessages(user.id);
-  const myPseudonym = generateDailyPseudonym(user.id);
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const reroll = searchParams.get("reroll") === "true";
 
-  return NextResponse.json({
+  let { token, isNew } = getOrSetAnonToken();
+  if (reroll) {
+    token = `anon_${crypto.randomBytes(8).toString("hex")}`;
+    isNew = true;
+  }
+
+  const myPseudonym = generateDailyPseudonym(token);
+  const messages = db.getChatMessages(myPseudonym);
+
+  const response = NextResponse.json({
     messages,
     currentUserPseudonym: myPseudonym,
-    policyNotice: "All messages in this room vanish permanently after 24 hours.",
+    anonToken: token,
+    policyNotice: "100% anonymous batch lounge • All messages vanish after 24 hours.",
   });
+
+  if (isNew || reroll) {
+    response.cookies.set("pgpx_anon_token", token, {
+      path: "/",
+      httpOnly: false,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
+  }
+
+  return response;
 }
 
 export async function POST(request: Request) {
   try {
-    const user = getCurrentUser();
+    const { token, isNew } = getOrSetAnonToken();
+    const myPseudonym = generateDailyPseudonym(token);
     const body = await request.json();
-    const { message, emoji, messageId } = body;
+    const { message, reroll } = body;
 
-    // React to an existing message
-    if (emoji && messageId) {
-      const reacted = db.reactToChatMessage(messageId, emoji);
-      return NextResponse.json({ success: reacted });
+    if (reroll) {
+      const freshToken = `anon_${crypto.randomBytes(8).toString("hex")}`;
+      const freshPseudonym = generateDailyPseudonym(freshToken);
+      const res = NextResponse.json({
+        success: true,
+        currentUserPseudonym: freshPseudonym,
+      });
+      res.cookies.set("pgpx_anon_token", freshToken, {
+        path: "/",
+        httpOnly: false,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+      return res;
     }
 
     if (!message || typeof message !== "string" || message.trim().length === 0) {
@@ -49,8 +85,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const newMessage = db.postChatMessage(message, user.id);
-    return NextResponse.json({ success: true, message: newMessage }, { status: 201 });
+    const newMessage = db.postChatMessage(message, myPseudonym, token);
+    const res = NextResponse.json({ success: true, message: newMessage }, { status: 201 });
+
+    if (isNew) {
+      res.cookies.set("pgpx_anon_token", token, {
+        path: "/",
+        httpOnly: false,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
+
+    return res;
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

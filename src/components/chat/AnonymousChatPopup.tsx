@@ -23,6 +23,22 @@ export function AnonymousChatPopup() {
     }
   };
 
+  const handleReroll = async () => {
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reroll: true }),
+      });
+      const data = await res.json();
+      if (data.currentUserPseudonym) {
+        setMyPseudonym(data.currentUserPseudonym);
+      }
+    } catch (err) {
+      // silent
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       loadMessages();
@@ -91,8 +107,17 @@ export function AnonymousChatPopup() {
                     24h Purge
                   </span>
                 </div>
-                <div className="text-[10px] text-[#71717a] font-mono">
-                  Posting as: <span className="text-[#ededed] font-medium">{myPseudonym}</span>
+                <div className="text-[10px] text-[#71717a] font-mono flex items-center gap-1.5 mt-0.5">
+                  <span>Posting as:</span>
+                  <span className="text-[#ededed] font-medium">{myPseudonym}</span>
+                  <button
+                    onClick={handleReroll}
+                    type="button"
+                    title="Change handle"
+                    className="px-1 py-0.2 rounded bg-zinc-800 hover:bg-zinc-700 text-[9px] text-zinc-300 transition-colors"
+                  >
+                    🎲 Re-roll
+                  </button>
                 </div>
               </div>
             </div>

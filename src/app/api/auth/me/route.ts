@@ -8,9 +8,9 @@ export async function GET() {
 
   let user = userIdCookie ? db.getUserById(userIdCookie.value) : null;
 
-  // Fallback to initial demo user (Rahul Verma, student) if not logged in
+  // Fallback to default batch member if not logged in
   if (!user) {
-    user = db.getUserById("u-rahul") || db.getUsers()[0];
+    user = db.getUserById("u-batch") || db.getUsers()[0];
   }
 
   return NextResponse.json({ user });
