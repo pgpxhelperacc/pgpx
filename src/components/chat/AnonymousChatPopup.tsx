@@ -131,9 +131,8 @@ export function AnonymousChatPopup() {
           </div>
 
           {/* Ephemeral Info Banner */}
-          <div className="px-3 py-1 bg-[#09090b] border-b border-[#18181b] text-[10px] text-[#52525b] flex items-center justify-between font-mono">
+          <div className="px-3 py-1 bg-[#09090b] border-b border-[#18181b] text-[10px] text-[#52525b] flex items-center font-mono">
             <span>Text only • 24h rolling purge</span>
-            <span>@iimrohtak.ac.in</span>
           </div>
 
           {/* Messages Stream (Text Only) */}

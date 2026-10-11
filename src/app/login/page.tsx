@@ -63,7 +63,7 @@ export default function LoginPage() {
         {/* Security Rule Pill */}
         <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-2.5 text-xs text-blue-300">
           <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
-          <span>Restricted to verified @iimrohtak.ac.in accounts only.</span>
+          <span>Restricted to verified institute accounts only.</span>
         </div>
 
         {/* Form */}

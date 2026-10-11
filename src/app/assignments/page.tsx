@@ -253,7 +253,7 @@ export default function AssignmentsPage() {
             <div className="text-xs font-medium text-white">Delivery Channels</div>
             <div className="space-y-2">
               <label className="flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-white/5 text-xs text-zinc-300 cursor-pointer">
-                <span>Email Notifications (@iimrohtak.ac.in via Resend)</span>
+                <span>Email Notifications</span>
                 <input
                   type="checkbox"
                   checked={emailAlerts}

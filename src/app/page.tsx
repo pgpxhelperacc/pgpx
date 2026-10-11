@@ -322,12 +322,11 @@ export default function DashboardPage() {
           </div>
 
           {/* Ephemeral Info Sub-bar */}
-          <div className="px-4 py-1.5 bg-[#0e0e11] border-b border-white/[0.04] text-[10px] font-mono text-zinc-500 flex items-center justify-between">
+          <div className="px-4 py-1.5 bg-[#0e0e11] border-b border-white/[0.04] text-[10px] font-mono text-zinc-500 flex items-center">
             <span className="flex items-center gap-1.5">
               <Info className="w-3 h-3 text-zinc-500" />
               <span>Pseudonyms rotate daily or via re-roll • Keep interactions constructive</span>
             </span>
-            <span className="text-zinc-600">@iimrohtak.ac.in</span>
           </div>
 
           {/* Chat Messages Stream */}
