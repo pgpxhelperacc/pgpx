@@ -20,7 +20,44 @@ import {
   ReportItem,
   AuditLogEntry,
 } from "@/types";
+import fs from "fs";
+import path from "path";
+import os from "os";
 import { generateDailyPseudonym, sanitizeText, computeFeedbackHash } from "./security";
+
+const CHAT_FILE = path.join(os.tmpdir(), "pgpx_chat_messages_v1.json");
+
+function loadPersistedChatMessages(): ChatMessage[] {
+  try {
+    if (typeof globalThis !== "undefined" && Array.isArray((globalThis as any).__pgpx_chat_messages)) {
+      return (globalThis as any).__pgpx_chat_messages;
+    }
+    if (fs.existsSync(CHAT_FILE)) {
+      const data = fs.readFileSync(CHAT_FILE, "utf-8");
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        if (typeof globalThis !== "undefined") {
+          (globalThis as any).__pgpx_chat_messages = parsed;
+        }
+        return parsed;
+      }
+    }
+  } catch (err) {
+    // silent
+  }
+  return [];
+}
+
+function persistChatMessages(messages: ChatMessage[]) {
+  try {
+    if (typeof globalThis !== "undefined") {
+      (globalThis as any).__pgpx_chat_messages = messages;
+    }
+    fs.writeFileSync(CHAT_FILE, JSON.stringify(messages), "utf-8");
+  } catch (err) {
+    // silent
+  }
+}
 
 // Base academic structure (Zero dummy data - clean fresh portal)
 const SEED_FACULTY: Faculty[] = [];
@@ -66,7 +103,7 @@ class LocalDatabaseStore {
   private calendar: SemesterCalendarItem[] = [];
   private assignments: Assignment[] = [];
   private partyEvents: PartyEvent[] = [];
-  private chatMessages: ChatMessage[] = [];
+  private chatMessages: ChatMessage[] = loadPersistedChatMessages();
   private feedbackThreads: FeedbackThreadRecord[] = [];
   private legacyFeedbackSubmissions: FeedbackSubmission[] = [];
   private reports: ReportItem[] = [];
@@ -652,6 +689,14 @@ class LocalDatabaseStore {
   // ANONYMOUS CHAT (24-Hour Rolling Purge)
   getChatMessages(myPseudonym?: string): ChatMessage[] {
     const cutoff = new Date(Date.now() - 24 * 3600000);
+    const persisted = loadPersistedChatMessages();
+    if (persisted.length > 0) {
+      const map = new Map<string, ChatMessage>();
+      this.chatMessages.forEach((m) => map.set(m.id, m));
+      persisted.forEach((m) => map.set(m.id, m));
+      this.chatMessages = Array.from(map.values());
+    }
+
     this.purgeExpiredChatMessages();
 
     return this.chatMessages
@@ -666,9 +711,18 @@ class LocalDatabaseStore {
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }
 
-  postChatMessage(body: string, authorPseudonym: string, sessionToken?: string): ChatMessage {
+  syncChatFromExternal(messages: ChatMessage[]): void {
+    if (!Array.isArray(messages) || messages.length === 0) return;
+    const map = new Map<string, ChatMessage>();
+    this.chatMessages.forEach((m) => map.set(m.id, m));
+    messages.forEach((m) => map.set(m.id, m));
+    this.chatMessages = Array.from(map.values());
+    persistChatMessages(this.chatMessages);
+  }
+
+  postChatMessage(body: string, authorPseudonym: string, sessionToken?: string, customId?: string): ChatMessage {
     const msg: ChatMessage = {
-      id: `cmsg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: customId || `cmsg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       room_id: "batch-lounge",
       pseudonym: authorPseudonym,
       body: sanitizeText(body),
@@ -677,7 +731,13 @@ class LocalDatabaseStore {
       created_at: new Date().toISOString(),
       is_own: true,
     };
-    this.chatMessages.push(msg);
+    const idx = this.chatMessages.findIndex((m) => m.id === msg.id);
+    if (idx >= 0) {
+      this.chatMessages[idx] = msg;
+    } else {
+      this.chatMessages.push(msg);
+    }
+    persistChatMessages(this.chatMessages);
     return msg;
   }
 
@@ -687,6 +747,9 @@ class LocalDatabaseStore {
     this.chatMessages = this.chatMessages.filter(
       (m) => new Date(m.created_at) >= cutoff
     );
+    if (beforeCount !== this.chatMessages.length) {
+      persistChatMessages(this.chatMessages);
+    }
     return beforeCount - this.chatMessages.length;
   }
 

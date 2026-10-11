@@ -212,6 +212,28 @@ describe("Acceptance Criterion 4: Anonymous Chat 24-Hour Purge & Rotating Pseudo
     const foundExpired = activeMessages.some((m) => m.id === "expired-test-msg");
     expect(foundExpired).toBe(false);
   });
+
+  it("preserves custom message ID and synchronizes external messages without duplication", () => {
+    const customId = `cmsg-test-${Date.now()}`;
+    const msg = db.postChatMessage("Optimistic test message", "u-test", "sess-test", customId);
+    expect(msg.id).toBe(customId);
+
+    db.syncChatFromExternal([
+      {
+        id: customId,
+        room_id: "batch-lounge",
+        pseudonym: "u-test",
+        body: "Optimistic test message (synced)",
+        created_at: msg.created_at,
+        reactions: {},
+      },
+    ]);
+
+    const messages = db.getChatMessages();
+    const matching = messages.filter((m) => m.id === customId);
+    expect(matching.length).toBe(1);
+    expect(matching[0].body).toBe("Optimistic test message (synced)");
+  });
 });
 
 describe("Acceptance Criterion 5: OWASP Input Sanitization", () => {

@@ -28,18 +28,50 @@ export default function AnonymousChatPage() {
 
   const loadMessages = async () => {
     try {
-      const res = await fetch("/api/chat");
+      const res = await fetch(`/api/chat?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
       const data = await res.json();
-      if (data.messages) setMessages(data.messages);
       if (data.currentUserPseudonym) setMyPseudonym(data.currentUserPseudonym);
+      if (Array.isArray(data.messages)) {
+        setMessages((prev) => {
+          const map = new Map<string, ChatMessage>();
+          const cutoff = Date.now() - 24 * 3600 * 1000;
+          prev
+            .filter((m) => new Date(m.created_at).getTime() >= cutoff)
+            .forEach((m) => map.set(m.id, m));
+          data.messages
+            .filter((m: ChatMessage) => new Date(m.created_at).getTime() >= cutoff)
+            .forEach((m: ChatMessage) => map.set(m.id, m));
+          const merged = Array.from(map.values()).sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+          try {
+            localStorage.setItem("pgpx_chat_cache", JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem("pgpx_chat_cache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const cutoff = Date.now() - 24 * 3600 * 1000;
+        if (Array.isArray(parsed)) {
+          setMessages(parsed.filter((m: ChatMessage) => new Date(m.created_at).getTime() >= cutoff));
+        }
+      }
+    } catch (e) {}
+
     loadMessages();
-    const interval = setInterval(loadMessages, 4000); // polling updates
+    const interval = setInterval(loadMessages, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -67,17 +99,42 @@ export default function AnonymousChatPage() {
     e.preventDefault();
     if (!inputText.trim()) return;
 
+    const text = inputText.trim();
     setSending(true);
+
+    const optimisticMsg: ChatMessage = {
+      id: `cmsg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      room_id: "batch-lounge",
+      pseudonym: myPseudonym,
+      body: text,
+      created_at: new Date().toISOString(),
+      is_own: true,
+      reactions: {},
+    };
+
+    setMessages((prev) => {
+      const next = [...prev, optimisticMsg];
+      try {
+        localStorage.setItem("pgpx_chat_cache", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+
+    setInputText("");
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: inputText }),
+        body: JSON.stringify({ message: text, id: optimisticMsg.id }),
       });
 
       if (res.ok) {
-        setInputText("");
-        loadMessages();
+        await loadMessages();
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }
     } catch (err) {
       console.error(err);

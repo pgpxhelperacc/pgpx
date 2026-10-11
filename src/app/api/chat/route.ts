@@ -3,6 +3,10 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { db } from "@/lib/db";
 import { containsProfanityOrSpam, generateDailyPseudonym } from "@/lib/security";
+import {
+  fetchSupabaseChatMessages,
+  saveSupabaseChatMessage,
+} from "@/lib/supabase";
 
 function getOrSetAnonToken(): { token: string; isNew: boolean } {
   const cookieStore = cookies();
@@ -13,6 +17,9 @@ function getOrSetAnonToken(): { token: string; isNew: boolean } {
   const newToken = `anon_${crypto.randomBytes(8).toString("hex")}`;
   return { token: newToken, isNew: true };
 }
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -25,6 +32,16 @@ export async function GET(request: Request) {
   }
 
   const myPseudonym = generateDailyPseudonym(token);
+
+  try {
+    const supabaseMsgs = await fetchSupabaseChatMessages();
+    if (supabaseMsgs && supabaseMsgs.length > 0) {
+      db.syncChatFromExternal(supabaseMsgs);
+    }
+  } catch (err) {
+    // fallback gracefully to local store
+  }
+
   const messages = db.getChatMessages(myPseudonym);
 
   const response = NextResponse.json({
@@ -33,6 +50,10 @@ export async function GET(request: Request) {
     anonToken: token,
     policyNotice: "100% anonymous batch lounge • All messages vanish after 24 hours.",
   });
+
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
 
   if (isNew || reroll) {
     response.cookies.set("pgpx_anon_token", token, {
@@ -51,7 +72,7 @@ export async function POST(request: Request) {
     const { token, isNew } = getOrSetAnonToken();
     const myPseudonym = generateDailyPseudonym(token);
     const body = await request.json();
-    const { message, reroll } = body;
+    const { message, reroll, id: clientMsgId } = body;
 
     if (reroll) {
       const freshToken = `anon_${crypto.randomBytes(8).toString("hex")}`;
@@ -85,7 +106,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const newMessage = db.postChatMessage(message, myPseudonym, token);
+    const newMessage = db.postChatMessage(message, myPseudonym, token, clientMsgId);
+
+    try {
+      await saveSupabaseChatMessage(newMessage);
+    } catch (saveErr) {
+      console.warn("Failed to persist to Supabase:", saveErr);
+    }
+
     const res = NextResponse.json({ success: true, message: newMessage }, { status: 201 });
 
     if (isNew) {
