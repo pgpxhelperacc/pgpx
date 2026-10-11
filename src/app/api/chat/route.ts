@@ -35,8 +35,8 @@ export async function GET(request: Request) {
 
   try {
     const supabaseMsgs = await fetchSupabaseChatMessages();
-    if (supabaseMsgs && supabaseMsgs.length > 0) {
-      db.syncChatFromExternal(supabaseMsgs);
+    if (Array.isArray(supabaseMsgs)) {
+      db.replaceChatMessages(supabaseMsgs);
     }
   } catch (err) {
     // fallback gracefully to local store

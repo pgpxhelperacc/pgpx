@@ -711,6 +711,11 @@ class LocalDatabaseStore {
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }
 
+  replaceChatMessages(messages: ChatMessage[]): void {
+    this.chatMessages = [...messages];
+    persistChatMessages(this.chatMessages);
+  }
+
   syncChatFromExternal(messages: ChatMessage[]): void {
     if (!Array.isArray(messages) || messages.length === 0) return;
     const map = new Map<string, ChatMessage>();
