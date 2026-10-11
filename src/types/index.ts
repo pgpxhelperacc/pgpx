@@ -305,6 +305,12 @@ export interface PartyEvent {
   created_at: string;
 }
 
+export interface ChatReplyTo {
+  id: string;
+  pseudonym: string;
+  body: string;
+}
+
 export interface ChatMessage {
   id: string;
   room_id: string;
@@ -312,6 +318,8 @@ export interface ChatMessage {
   body: string;
   session_token?: string; // stripped before sending to clients
   reactions: Record<string, number>;
+  user_reactions?: string[];
+  reply_to?: ChatReplyTo | null;
   created_at: string;
   is_own?: boolean;
 }

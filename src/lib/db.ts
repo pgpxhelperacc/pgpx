@@ -17,6 +17,7 @@ import {
   PartyRSVPStatus,
   PartyMessage,
   ChatMessage,
+  ChatReplyTo,
   ReportItem,
   AuditLogEntry,
 } from "@/types";
@@ -725,7 +726,13 @@ class LocalDatabaseStore {
     persistChatMessages(this.chatMessages);
   }
 
-  postChatMessage(body: string, authorPseudonym: string, sessionToken?: string, customId?: string): ChatMessage {
+  postChatMessage(
+    body: string,
+    authorPseudonym: string,
+    sessionToken?: string,
+    customId?: string,
+    replyTo?: ChatReplyTo | null
+  ): ChatMessage {
     const msg: ChatMessage = {
       id: customId || `cmsg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       room_id: "batch-lounge",
@@ -733,6 +740,7 @@ class LocalDatabaseStore {
       body: sanitizeText(body),
       session_token: sessionToken || `sess-${Date.now()}`,
       reactions: {},
+      reply_to: replyTo || null,
       created_at: new Date().toISOString(),
       is_own: true,
     };
@@ -742,6 +750,33 @@ class LocalDatabaseStore {
     } else {
       this.chatMessages.push(msg);
     }
+    persistChatMessages(this.chatMessages);
+    return msg;
+  }
+
+  toggleReaction(messageId: string, emoji: string, userPseudonym: string): ChatMessage | null {
+    const msg = this.chatMessages.find((m) => m.id === messageId);
+    if (!msg) return null;
+
+    const currentRaw = ((msg as any)._raw_reactions || {}) as Record<string, string[]>;
+    const list = Array.isArray(currentRaw[emoji]) ? currentRaw[emoji] : [];
+    const idx = list.indexOf(userPseudonym);
+    if (idx >= 0) {
+      list.splice(idx, 1);
+      if (list.length === 0) delete currentRaw[emoji];
+      else currentRaw[emoji] = list;
+    } else {
+      list.push(userPseudonym);
+      currentRaw[emoji] = list;
+    }
+    (msg as any)._raw_reactions = currentRaw;
+
+    const counts: Record<string, number> = {};
+    for (const [k, v] of Object.entries(currentRaw)) {
+      counts[k] = v.length;
+    }
+    msg.reactions = counts;
+    msg.user_reactions = currentRaw[emoji]?.includes(userPseudonym) ? [emoji] : [];
     persistChatMessages(this.chatMessages);
     return msg;
   }

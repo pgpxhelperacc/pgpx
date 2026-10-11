@@ -3,9 +3,12 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { db } from "@/lib/db";
 import { containsProfanityOrSpam, generateDailyPseudonym } from "@/lib/security";
+import { ChatMessage } from "@/types";
 import {
   fetchSupabaseChatMessages,
   saveSupabaseChatMessage,
+  toggleSupabaseReaction,
+  purgeOldSupabaseChatMessages,
 } from "@/lib/supabase";
 
 function getOrSetAnonToken(): { token: string; isNew: boolean } {
@@ -33,16 +36,24 @@ export async function GET(request: Request) {
 
   const myPseudonym = generateDailyPseudonym(token);
 
+  let messages: ChatMessage[] = [];
   try {
-    const supabaseMsgs = await fetchSupabaseChatMessages();
+    const supabaseMsgs = await fetchSupabaseChatMessages(myPseudonym);
     if (Array.isArray(supabaseMsgs)) {
       db.replaceChatMessages(supabaseMsgs);
+      messages = supabaseMsgs;
     }
   } catch (err) {
     // fallback gracefully to local store
+    messages = db.getChatMessages(myPseudonym);
   }
 
-  const messages = db.getChatMessages(myPseudonym);
+  if (messages.length === 0) {
+    messages = db.getChatMessages(myPseudonym);
+  }
+
+  // Purge expired in background without blocking
+  purgeOldSupabaseChatMessages().catch(() => {});
 
   const response = NextResponse.json({
     messages,
@@ -72,7 +83,7 @@ export async function POST(request: Request) {
     const { token, isNew } = getOrSetAnonToken();
     const myPseudonym = generateDailyPseudonym(token);
     const body = await request.json();
-    const { message, reroll, id: clientMsgId } = body;
+    const { message, reroll, id: clientMsgId, reply_to } = body;
 
     if (reroll) {
       const freshToken = `anon_${crypto.randomBytes(8).toString("hex")}`;
@@ -106,7 +117,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const newMessage = db.postChatMessage(message, myPseudonym, token, clientMsgId);
+    const newMessage = db.postChatMessage(message, myPseudonym, token, clientMsgId, reply_to);
 
     try {
       await saveSupabaseChatMessage(newMessage);
@@ -126,6 +137,36 @@ export async function POST(request: Request) {
     }
 
     return res;
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { token } = getOrSetAnonToken();
+    const myPseudonym = generateDailyPseudonym(token);
+    const body = await request.json();
+    const { messageId, emoji } = body;
+
+    if (!messageId || !emoji) {
+      return NextResponse.json({ error: "messageId and emoji are required" }, { status: 400 });
+    }
+
+    // Toggle in Supabase
+    let updated = await toggleSupabaseReaction(messageId, emoji, myPseudonym);
+
+    // Toggle in local store
+    const localUpdated = db.toggleReaction(messageId, emoji, myPseudonym);
+    if (!updated && localUpdated) {
+      updated = localUpdated;
+    }
+
+    if (!updated) {
+      return NextResponse.json({ error: "Message not found or expired" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: updated });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
