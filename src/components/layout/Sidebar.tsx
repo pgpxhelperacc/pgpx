@@ -58,9 +58,9 @@ export function Sidebar({ userRole = "student" }: SidebarProps) {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-60 border-r border-[#1c1c1f] bg-black shrink-0 select-none z-30">
+    <aside className="hidden md:flex flex-col w-60 border-r border-[#1c1c1f] bg-black shrink-0 select-none z-30 sticky top-0 h-screen">
       {/* Brand Header */}
-      <div className="h-13 flex items-center px-4 border-b border-[#1c1c1f] justify-between">
+      <div className="h-14 flex items-center px-4 border-b border-[#1c1c1f] justify-between shrink-0">
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="w-5 h-5 rounded bg-white text-black flex items-center justify-center font-bold text-[10px] tracking-tight">
             ▲
